@@ -1,15 +1,10 @@
 package com.abb.pfg.views;
 
-import java.io.IOException;
-
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
 
-import com.abb.pfg.frontend.commons.Constants;
-import com.abb.pfg.frontend.components.CustomBasicDialog;
+import com.abb.pfg.custom.CustomBasicDialog;
+import com.abb.pfg.utils.Constants;
+import com.abb.pfg.utils.HttpRequest;
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.login.AbstractLogin.LoginEvent;
@@ -21,10 +16,11 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
+import com.vaadin.flow.server.VaadinSession;
 
 /**
- * 
- * 
+ * Default login view, to authenticate the users
+ *
  * @author Adrian Barco Barona
  * @version 1.0
  *
@@ -36,55 +32,59 @@ import com.vaadin.flow.router.RouteAlias;
 public class LoginView extends Composite<VerticalLayout> {
 	
 	private static final long serialVersionUID = 1096561116011164613L;
+	//Etiquetas
 	private static final String LOGIN_TAG = "Iniciar sesión";
 	private static final String REGISTER_TAG = "Registrarse";
 	private static final String ENTER_TAG = "Acceder";
 	private static final String GUEST_TAG = "Acceder como invitado";
 	private static final String AUTH_ERR = "Credenciales erróneas";
 	private static final String AUTH_ERR_MSG = "Comprueba que las credenciales son correctas";
-	//URLs
-	private static final String LOGIN_REQ = "http://localhost:8081/auth/login?username=";
-	private static final String OFFERS_PATH = "/availableJobOffers";
-	
+	//Componentes
 	private VerticalLayout mainLayout;
 	private LoginForm loginForm;
 	private LoginI18n loginI18n;
 	private LoginI18n.Form i18nForm;
 	private Button guestButton, signUpButton;
-	
-	
+	private String username;
+
+	/**
+	 * Default class constructor
+	 *
+	 */
 	public LoginView() {
-		this.init();
-		getContent().add(mainLayout); 
+		init();
+		getContent().add(mainLayout);
 		getContent().setAlignItems(FlexComponent.Alignment.CENTER);
 	}
-	
+
+	/**
+	 * Initializes all view components
+	 *
+	 */
 	private void init() {
-		this.setLoginForm();
-		this.setButtonsLayout();
+		setLoginForm();
+		setButtonsLayout();
 		mainLayout = new VerticalLayout();
 		mainLayout.add(loginForm, new HorizontalLayout(guestButton, signUpButton));
 		mainLayout.setAlignItems(FlexComponent.Alignment.CENTER);
 	}
-	
+
+	/**
+	 * Builds the login form
+	 *
+	 */
 	private void setLoginForm() {
 		this.setI18nForm();
 		loginForm = new LoginForm();
 		loginForm.setForgotPasswordButtonVisible(false);
-		loginForm.addLoginListener(authenticationEvent -> {
-			var token = authenticate(authenticationEvent);
-			var isAuthenticated = (token != null) ? true : false;
-			if(isAuthenticated) {
-				this.getUI().ifPresent(ui -> ui.navigate(OFFERS_PATH + "/" + token));
-			} else {
-				var errorDialog = new CustomBasicDialog(AUTH_ERR, AUTH_ERR_MSG);
-				errorDialog.open();
-				loginForm.setEnabled(true);
-			}
-		});
+		loginForm.addLoginListener(authenticationEvent -> authenticationListener(authenticate(authenticationEvent)));
 		loginForm.setI18n(loginI18n);
 	}
-	
+
+	/**
+	 * Builds the components login form
+	 *
+	 */
 	private void setI18nForm() {
 		loginI18n = LoginI18n.createDefault();
 		i18nForm = loginI18n.getForm();
@@ -94,42 +94,100 @@ public class LoginView extends Composite<VerticalLayout> {
 		i18nForm.setSubmit(ENTER_TAG);
 		loginI18n.setForm(i18nForm);
 	}
-	
+
+	/**
+	 * Builds the layout that contains the action buttons
+	 *
+	 */
 	private void setButtonsLayout() {
 		guestButton = new Button(GUEST_TAG);
 		signUpButton = new Button(REGISTER_TAG);
-		guestButton.addClickListener(event -> 
-				guestButton.getUI().ifPresent(ui -> ui.navigate(OFFERS_PATH)));
-		signUpButton.addClickListener(event -> 
+		guestButton.addClickListener(event -> authenticationListener(sendAuthenticationRequest(null, null)));
+		signUpButton.addClickListener(event ->
 				signUpButton.getUI().ifPresent(ui -> ui.navigate(Constants.SIGNUP_PATH)));
 	}
-	
+
+	/**
+	 * Gets the user credentials to send the authentication rrequest
+	 *
+	 * @param event
+	 * @return
+	 */
 	private String authenticate (LoginEvent event) {
-		var username = event.getUsername();
+		username = event.getUsername();
 		var password = event.getPassword();
-		if(username.isEmpty() || password.isEmpty()) {
-			return null;
-		}		
-		return sendAuthenticationRequest(username, password);
-	}
-	
-	private String sendAuthenticationRequest(String username, String password) {
-		var httpClient = HttpClients.createDefault();
-		var urlLogin = LOGIN_REQ + username + "&password=" + password;
-		var httpPost = new HttpPost(urlLogin);
-		try {		//Verificar resultado de la autenticación
-			var httpResponse = httpClient.execute(httpPost);
-			var httpStatus = httpResponse.getStatusLine().getStatusCode();
-			//Verificar si autenticacion exitosa o fallida
-			if(httpStatus == HttpStatus.SC_CREATED) {
-				var responseBody = EntityUtils.toString(httpResponse.getEntity());
-				var jsonResponse = new JSONObject(responseBody);
-				var token = jsonResponse.getString("token");
-				return token;
-			}
-			return null;
-		} catch (IOException | NullPointerException e) {
+		if(username.isBlank() || password.isBlank()) {
 			return null;
 		}
+		return sendAuthenticationRequest(username, password);
+	}
+
+	/**
+	 * Sends the request that verifies the user credentials
+	 *
+	 * @param username - users's username
+	 * @param password - user's password
+	 * @return
+	 */
+	private String sendAuthenticationRequest(String username, String password) {
+		var httpRequest = new HttpRequest(Constants.AUTH_REQ + "/login");
+		if(username != null && password != null) {
+			httpRequest.setUrl(httpRequest.getUrl() + "?username=" + username + "&password=" + password);
+		}
+		return httpRequest.executeLoginRequest();
+	}
+
+	/**
+	 * Listener assigned to the login button
+	 *
+	 * @param responseBody - user JSON object to analyze
+	 */
+	private void authenticationListener(String responseBody) {
+		if(responseBody != null) {
+			var jsonResponse = new JSONObject(responseBody);
+			var token = jsonResponse.getString("token");
+			var role = jsonResponse.getString("role");
+			var isAuthenticated = (token != null) ? true : false;
+			if(isAuthenticated) {
+				VaadinSession.getCurrent().setAttribute("authToken", token);
+				VaadinSession.getCurrent().setAttribute("role", role);
+				var userTmp = (role.equals("GUEST") ? role : username);
+				VaadinSession.getCurrent().setAttribute("username", userTmp);
+				verifyRoleToAssignPath(role);
+			} else {
+				showErrorDialog(AUTH_ERR, AUTH_ERR_MSG);
+			}
+			return;
+		}
+		showErrorDialog(AUTH_ERR, AUTH_ERR_MSG);
+	}
+
+	/**
+	 * Verifies the user role to assign a specified path
+	 *
+	 * @param role - user's role
+	 */
+	private void verifyRoleToAssignPath(String role) {
+		if(role.equals(Constants.STD_ROLE)) {
+			this.getUI().ifPresent(ui -> ui.navigate(Constants.REQ_PATH));
+			return;
+		}
+		if(role.equals(Constants.ADM_ROLE)) {
+			this.getUI().ifPresent(ui -> ui.navigate(Constants.MNG_USERS_PATH));
+			return;
+		}
+		this.getUI().ifPresent(ui -> ui.navigate(Constants.OFFERS_PATH));
+	}
+
+	/**
+	 * Shows a custom error dialog if necessary
+	 *
+	 * @param title - dialog title
+	 * @param message - dialog message
+	 */
+	private void showErrorDialog(String title, String message) {
+		var errorDialog = new CustomBasicDialog(title, message);
+		errorDialog.open();
+		loginForm.setEnabled(true);
 	}
 }
