@@ -58,6 +58,14 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 	private static final String REJ_TAG = "Rechazar";
 	private static final String EDIT_WRN = "La solicitud ya ha sido procesada, por lo que no se puede editar";
 	private static final String SENDER_TAG = "Solicitante";
+	private static final String OP_CHT_TAG = "Abrir chat";
+	private static final String SHW_STD_TAG = "Ver estudiante";
+	private static final String SHW_CMP_TAG = "Ver empresa";
+	private static final String DEL_REQ_TAG = "Eliminar solicitud";
+	private static final String DEL_QST_MSG = "¿Estás seguro de que quieres eliminar la solicitud?";
+	private static final String GET_CHT_ERR = "No se ha podido obtener el chat";
+	private static final String DEL_REQ_MSG = "La solicitud fue eliminada con éxito";
+	private static final String DEL_REQ_ERR = "La solicitud no ha podido ser eliminada";
 	//Componentes
 	private HorizontalLayout buttonsLayout;
 	private TextField titleField, nameField, studentNameField;
@@ -101,17 +109,25 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 		init();
 	}
 	
-	private boolean verifyAccessPermission(String username, String userType, String requestBody) {
+	/**
+	 * Verifies if the user is or not allowed to acces to this view
+	 * 
+	 * @param username - user's username
+	 * @param userRole - user's role
+	 * @param requestBody - request to display
+	 * @return
+	 */
+	private boolean verifyAccessPermission(String username, String userRole, String requestBody) {
 		var usernameToVerify = new String();
 		try {
 			var jsonObject = new JSONObject(requestBody);
-			if(userType.equals(Constants.STD_ROLE)) {
+			if(userRole.equals(Constants.STD_ROLE)) {
 				usernameToVerify = jsonObject.getJSONObject("student").getJSONObject("user").getString("username");
 			} else {
 				usernameToVerify = jsonObject.getJSONObject("jobOffer").getJSONObject("company").getJSONObject("user").getString("username");
 			}
 		} catch (JSONException e) {
-			System.err.println("Error al parsear el objeto JSON: " + e.getMessage());
+			System.err.println(Constants.JSON_ERR + e.getMessage());
 			return false;
 		}
 		if(username.equals(usernameToVerify)) {
@@ -182,23 +198,30 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 			requestContentField.setValue(jsonObject.getString("content"));
 			var stdProfilePicture = jsonObject.getJSONObject("student").getString("profilePicture");
 			var cmpProfilePicture = jsonObject.getJSONObject("jobOffer").getJSONObject("company").getString("profilePicture");
-			getCustomAvatarMenus(nameField.getValue() , stdProfilePicture, cmpProfilePicture);
+			setCustomAvatarMenus(nameField.getValue() , stdProfilePicture, cmpProfilePicture);
 			studentNameField.setValue(jsonObject.getJSONObject("student").getString("name"));
 			return;
 		}
 		new CustomNotification(GNR_ERR, NotificationVariant.LUMO_ERROR);
 	}
 	
-	private void getCustomAvatarMenus(String name, String stdProfilePicture, String cmpProfilePicture) {
+	/**
+	 * Sets up the student's and company's avatar
+	 * 
+	 * @param name - user's name
+	 * @param stdProfilePicture - student's profile picture
+	 * @param cmpProfilePicture - company's profile picture
+	 */
+	private void setCustomAvatarMenus(String name, String stdProfilePicture, String cmpProfilePicture) {
 		if(!userRole.equals(Constants.STD_ROLE)) {	//ADMIN Y COMPANY
 			var stdCustomAvatar = (stdProfilePicture.isBlank()) ? new Avatar(name) : new CustomAvatar(stdProfilePicture);
 			stdMenuBar = new MenuBar();
 			stdMenuBar.addThemeVariants(MenuBarVariant.LUMO_TERTIARY_INLINE);
 			var menuItem = stdMenuBar.addItem(stdCustomAvatar);
 			var subMenu = menuItem.getSubMenu();
-			subMenu.addItem("Ver estudiante").addClickListener(event -> showStudentInfoListener());
+			subMenu.addItem(SHW_STD_TAG).addClickListener(event -> showStudentInfoListener());
 			if(userRole.equals(Constants.CMP_ROLE)) {
-				subMenu.addItem("Abrir chat").addClickListener(event -> openChatListener());
+				subMenu.addItem(OP_CHT_TAG).addClickListener(event -> openChatListener());
 			}
 		}
 		if(!userRole.equals(Constants.CMP_ROLE)) {	//ADMIN Y STUDENT
@@ -207,7 +230,7 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 			cmpMenuBar.addThemeVariants(MenuBarVariant.LUMO_TERTIARY_INLINE);
 			var menuItem = cmpMenuBar.addItem(cmpCustomAvatar);
 			var subMenu = menuItem.getSubMenu();
-			subMenu.addItem("Ver empresa").addClickListener(event -> showCompanyInfoListener());
+			subMenu.addItem(SHW_CMP_TAG).addClickListener(event -> showCompanyInfoListener());
 		}
 	}
 	
@@ -274,45 +297,47 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 		}
 	}
 	
+	/**
+	 * Sets up the content for students
+	 * 
+	 * @param baseVerticalLayout - vertical layout where the content is going to be displayed
+	 */
 	private void setStudentRoleLayout(VerticalLayout baseVerticalLayout){
-//		var verticalLayout = new VerticalLayout();
-//		verticalLayout.setAlignItems(Alignment.CENTER);
 		var horizontalLayout = new HorizontalLayout();
 		horizontalLayout.add(cmpMenuBar, nameField);
-		horizontalLayout.setWidth("50%");
-		//verticalLayout.add(horizontalLayout);
-		//verticalLayout.setWidthFull();
+		horizontalLayout.setWidth("50%");;
 		baseVerticalLayout.add(new H1(HEADER_TAG), titleField,
 				horizontalLayout, requestContentField, buttonsLayout);
 	}
 	
+	/**
+	 * Sets up the content for companies
+	 * 
+	 * @param baseVerticalLayout - vertical layout where the content is going to be displayed
+	 */
 	private void setCompanyRoleLayout(VerticalLayout baseVerticalLayout) {
-//		var verticalLayout = new VerticalLayout();
-//		verticalLayout.setAlignItems(Alignment.CENTER);
 		var horizontalLayout = new HorizontalLayout();
 		horizontalLayout.add(stdMenuBar, studentNameField);
 		horizontalLayout.setWidth("50%");
-		//verticalLayout.add(horizontalLayout);
-		//verticalLayout.setWidthFull();
 		baseVerticalLayout.add(new H1(HEADER_TAG), titleField,
 				nameField, horizontalLayout, requestContentField, buttonsLayout);
 	}
 	
+	/**
+	 * Sets up the content for admins
+	 * 
+	 * @param baseVerticalLayout - vertical layout where the content is going to be displayed
+	 */
 	private void setAdminRoleLayout(VerticalLayout baseVerticalLayout) {
 		var horizontalLayout1 = new HorizontalLayout();
 		horizontalLayout1.add(cmpMenuBar, nameField);
 		horizontalLayout1.setWidth("50%");
-		//var verticalLayout = new VerticalLayout();
-		//verticalLayout.setAlignItems(Alignment.CENTER);
 		var horizontalLayout2 = new HorizontalLayout();
 		horizontalLayout2.add(stdMenuBar, studentNameField);
 		horizontalLayout2.setWidth("50%");
-		//verticalLayout.add(horizontalLayout2);
-		//verticalLayout.setWidthFull();
 		baseVerticalLayout.add(new H1(HEADER_TAG), titleField,
 				horizontalLayout1, horizontalLayout2, requestContentField, buttonsLayout);
 	}
-	
 	
 	//LISTENERS
 	
@@ -398,8 +423,8 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 	 */
 	private void deleteButtonListener() {
 		var dialog = new Dialog();
-		dialog.setHeaderTitle("Eliminar solicitud");
-		dialog.add("¿Estás seguro de que quieres eliminar la solicitud?");
+		dialog.setHeaderTitle(DEL_REQ_TAG);
+		dialog.add(DEL_QST_MSG);
         var deleteButton = new Button(Constants.DELETE_TAG, event -> sendDeleteRequest(dialog, requestId));
         deleteButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_ERROR);
@@ -430,7 +455,7 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 				this.getUI().ifPresent(ui -> ui.navigate(Constants.CHAT_BOX_PATH + "/" + newChatCode));
 				return;
 			}
-			new CustomNotification("No se ha podido obtener el chat", NotificationVariant.LUMO_PRIMARY);
+			new CustomNotification(GET_CHT_ERR, NotificationVariant.LUMO_PRIMARY);
 			return;
 		}
 		this.getUI().ifPresent(ui -> ui.navigate(Constants.CHAT_BOX_PATH + "/" + chatCode));
@@ -448,6 +473,10 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 		this.getUI().ifPresent(ui -> ui.navigate(url));
 	}
 	
+	/**
+	 * Listener assigned to the company info option
+	 * 
+	 */
 	private void showCompanyInfoListener() {
 		var jsonObject = new JSONObject(requestJSONBody);
 		var userId = jsonObject.getJSONObject("jobOffer").getJSONObject("company").getJSONObject("user").getString("username");
@@ -510,11 +539,11 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 		var httpRequest = new HttpRequest(Constants.REQ_REQ + "?requestCode=" + requestCode);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
 		if(httpRequest.executeHttpDelete(authToken)) {
-			new CustomNotification("La solicitud fue eliminada con éxito", NotificationVariant.LUMO_SUCCESS);
+			new CustomNotification(DEL_REQ_MSG, NotificationVariant.LUMO_SUCCESS);
 			this.getUI().ifPresent(ui -> ui.navigate(Constants.REQ_PATH));
 			return;
 		}
-		new CustomNotification("La solicitud no ha podido ser eliminada", NotificationVariant.LUMO_ERROR);
+		new CustomNotification(DEL_REQ_ERR, NotificationVariant.LUMO_ERROR);
 	}
 	
 	/**
@@ -524,7 +553,7 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 	 * @param company - chat's company
 	 * @return String - chat json object
 	 */
-	private String sendGetChatRequest(String student, String company) {
+	private Long sendGetChatRequest(String student, String company) {
 		var httpRequest = new HttpRequest(Constants.CHATS_REQ + "?companyId=" + company + "&studentId=" + student);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
 		var responseBody = httpRequest.executeHttpGet(authToken);
@@ -532,7 +561,7 @@ public class RequestDetailsView extends CustomAppLayout implements HasUrlParamet
 			var jsonChatsObject = new JSONObject(responseBody);
 			var numElements = jsonChatsObject.getInt("totalElements");
 			if(numElements == 1) {
-				var chatCode = jsonChatsObject.getJSONArray("content").getJSONObject(0).getString("chatCode");
+				var chatCode = jsonChatsObject.getJSONArray("content").getJSONObject(0).getLong("id");
 				return chatCode;
 			}
 		}

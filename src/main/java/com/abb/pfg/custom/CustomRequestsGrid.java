@@ -41,12 +41,11 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 	/**
 	 * Default class constructor
 	 * 
-	 * @param numElements - number of elements that the grid will have
 	 * @param contentArray - JSON array with the content
 	 * @param userType - user's role
 	 */
-	public CustomRequestsGrid(int numElements, JSONArray contentArray, String userRole) {
-		var gridData = getGridData(numElements, contentArray);
+	public CustomRequestsGrid(JSONArray contentArray, String userRole) {
+		var gridData = getGridData(contentArray);
 		this.setAllRowsVisible(true);
 		this.setItems(gridData);
 		this.addColumn(request -> request.getTitle()).setHeader(Constants.TITLE_TAG);
@@ -65,13 +64,12 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 	/**
 	 * Gets the requests list to show to users their own requests
 	 *
-	 * @param numElements - number of elements that the list will have
 	 * @param contentArray - JSON array which contains all job offers to show
 	 * @return List<RequestListComponent> - requests list
 	 */
-	private List<RequestListComponent> getGridData(int numElements, JSONArray contentArray){
+	private List<RequestListComponent> getGridData(JSONArray contentArray){
 		requests = new ArrayList<>();
-		for(var i=0; i<numElements; i++) {
+		for(var i=0; i<contentArray.length(); i++) {
 			var jsonObject = (JSONObject) contentArray.get(i);
 			var requestCode = jsonObject.getLong("id");
 			var requestTitle = jsonObject.getJSONObject("jobOffer").getString("title");
@@ -88,6 +86,11 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 		return requests;
 	}
 	
+	/**
+	 * Sets up the grid for students users
+	 * 
+	 * @param userRole - usr's role
+	 */
 	private void setStudentRoleGrid(String userRole) {
 		this.addColumn(request -> request.getCompanyName()).setHeader(Constants.COMPANY_TAG);
 		this.addColumn(request -> request.getRequestDate()).setHeader(DATE_TAG);
@@ -100,6 +103,11 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 		requestsGrid.addItem(Constants.DELETE_TAG, event -> deleteRequestListener(event));
 	}
 	
+	/**
+	 * Sets up the grid for company users
+	 * 
+	 * @param userRole - user's role
+	 */
 	private void setCompanyRoleGrid(String userRole) {
 		this.addColumn(request -> request.getStudentName()).setHeader(APP_TAG);
 		this.addColumn(request -> request.getRequestDate()).setHeader(DATE_TAG);
@@ -112,6 +120,11 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 		requestsGrid.addItem("Abrir chat", event -> openChatListener(event));
 	}
 	
+	/**
+	 * Sets up the requests grid for admin users
+	 * 
+	 * @param userRole - user's role
+	 */
 	private void setAdminRoleGrid(String userRole) {
 		this.addColumn(request -> request.getCompanyName()).setHeader(Constants.COMPANY_TAG);
 		this.addColumn(request -> request.getStudentName()).setHeader(APP_TAG);

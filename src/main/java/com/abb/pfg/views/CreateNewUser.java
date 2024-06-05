@@ -41,7 +41,9 @@ public class CreateNewUser extends CustomAppLayout implements HasUrlParameter<St
 
 	private static final long serialVersionUID = -2074592320666001568L;
 	//Etiquetas
-	
+	private static final String CRE_TAG = "Crear ";
+	private static final String USR_CRE_MSG = "Usuario creado correctamente";
+	private static final String USR_CRE_ERR = "No se ha podido crear el usuario";
 	//Componentes
 	private VerticalLayout mainLayout;
 	private CustomSignUpUserLayout signUpUserLayout;
@@ -52,14 +54,13 @@ public class CreateNewUser extends CustomAppLayout implements HasUrlParameter<St
 
 	@Override
 	public void setParameter(BeforeEvent event, String parameter) {
+		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
+		if(authToken == null) {
+			event.forwardTo(LoginView.class);
+			return;
+		}
 		userRole = (String) VaadinSession.getCurrent().getAttribute("role");
-		try {
-			if(!userRole.equals(Constants.ADM_ROLE) || parameter == null) {
-				new CustomNotification(Constants.ACC_REJ_MSG, NotificationVariant.LUMO_ERROR);
-				event.forwardTo(LoginView.class);
-				return;
-			}
-		} catch (NullPointerException e) {
+		if(!userRole.equals(Constants.ADM_ROLE) || parameter == null) {
 			new CustomNotification(Constants.ACC_REJ_MSG, NotificationVariant.LUMO_ERROR);
 			event.forwardTo(LoginView.class);
 			return;
@@ -69,16 +70,11 @@ public class CreateNewUser extends CustomAppLayout implements HasUrlParameter<St
 	
 	@Override
 	public void beforeEnter(BeforeEnterEvent event) {
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		if(authToken == null) {
-			event.forwardTo(LoginView.class);
-			return;
-		}
 		init();
 	}
 	
 	/**
-	 * Initialices all view components
+	 * Initializes all view components
 	 * 
 	 */
 	private void init() {
@@ -87,7 +83,7 @@ public class CreateNewUser extends CustomAppLayout implements HasUrlParameter<St
 		mainLayout.setWidthFull();
 		setContentLayout(userCategory);
 		var baseVerticalLayout = new VerticalLayout();
-		baseVerticalLayout.add(new H1("Crear " + getHeaderTag(userCategory)), mainLayout);
+		baseVerticalLayout.add(new H1(CRE_TAG + getHeaderTag(userCategory)), mainLayout);
 		baseVerticalLayout.setAlignItems(Alignment.CENTER);
 		this.setContent(baseVerticalLayout);
 	}
@@ -217,21 +213,18 @@ public class CreateNewUser extends CustomAppLayout implements HasUrlParameter<St
 	 * 
 	 * @param userCategory - user's role to create
 	 */
-	private void handleSignUpIfUserFieldsOk(String userCategory) {																//Si no existen, procedo a realizar peticion de registro
+	private void handleSignUpIfUserFieldsOk(String userCategory) {							//Si no existen, procedo a realizar peticion de registro
 		if(createUser(userCategory)) {														//Registro correcto, aviso a usuario
-				if(createUserCategory(userCategory)) { 												//Si registro correcto
-					var picName = signUpStudentLayout.getMemoryBuffer().getFileName();
-					if(picName != null) {
-						processImage(signUpStudentLayout.getMemoryBuffer().getInputStream(), picName);
-					}
-					new CustomNotification("Usuario creado correctamente", NotificationVariant.LUMO_SUCCESS);
-				} else {														//Si registro fallido
-					new CustomNotification("No se ha podido crear el usuario", NotificationVariant.LUMO_ERROR);
-				}
+			if(userCategory.equals(Constants.STD_ROLE) && !signUpStudentLayout.getMemoryBuffer().getFileName().isEmpty()) {
+				processImage(signUpStudentLayout.getMemoryBuffer().getInputStream(), signUpStudentLayout.getMemoryBuffer().getFileName());
+			} else if(userCategory.equals(Constants.CMP_ROLE)) {
+				processImage(signUpCompanyLayout.getMemoryBuffer().getInputStream(), signUpCompanyLayout.getMemoryBuffer().getFileName());
+			}
+			new CustomNotification(USR_CRE_MSG, NotificationVariant.LUMO_SUCCESS);
 		} else {															//Fallo en el registro, aviso a usuario
-			new CustomNotification("No se ha podido crear el usuario", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(USR_CRE_ERR, NotificationVariant.LUMO_ERROR);
 		}
-		this.getUI().ifPresent(ui -> ui.navigate(Constants.MNG_USERS_PATH));
+		getUI().ifPresent(ui -> ui.navigate(Constants.MNG_USERS_PATH));
 	}
 	
 	/**
@@ -245,37 +238,6 @@ public class CreateNewUser extends CustomAppLayout implements HasUrlParameter<St
 		var password = signUpUserLayout.getPasswordField1().getOptionalValue().get();
 		var role = userCategory;
 		return sendCreateUserRequest(username, password, role);							//Ejecutamos peticion de registro
-	}
-	
-	/**
-	 * Performs the creation of the user, depending on the role it will have
-	 *
-	 * @param userCategory - user's role to create
-	 * @return boolean - true if it has been created, false if not
-	 */
-	private boolean createUserCategory(String userCategory) {
-		var postUrl = new String();
-		var requestBody = new String();
-		switch(userCategory) {
-			case Constants.STD_ROLE:
-				requestBody = createJSONObjectStudent(signUpUserLayout.getEmailField().getValue(), 
-						signUpStudentLayout.getNameField().getValue(), signUpStudentLayout.getDniField().getValue(),
-						signUpStudentLayout.getPhoneField().getValue(), signUpStudentLayout.getStudiesField().getValue(),
-						signUpStudentLayout.getDescriptionField().getValue(), signUpStudentLayout.getMemoryBuffer().getFileName());
-				postUrl = Constants.STD_REQ;
-				break;
-			case Constants.CMP_ROLE:
-				requestBody = createJSONObjectCompany(signUpUserLayout.getEmailField().getValue(), 
-						signUpCompanyLayout.getNameField().getValue(), signUpCompanyLayout.getCifField().getValue(),
-						signUpCompanyLayout.getCountryComboBox().getValue(), signUpCompanyLayout.getDescriptionField().getValue(), 
-						signUpCompanyLayout.getMemoryBuffer().getFileName());
-				postUrl = Constants.CMP_REQ;
-				break;
-			default:	//Admin
-				requestBody = createJSONObjectAdmin(signUpUserLayout.getEmailField().getValue());
-				postUrl = Constants.ADMIN_REQ;		
-		}
-		return sendCreateUserCategory(postUrl, requestBody);
 	}
 	
 	/**
@@ -320,76 +282,55 @@ public class CreateNewUser extends CustomAppLayout implements HasUrlParameter<St
 	 * @param role - user role
 	 * @return String - UserDto JSON object
 	 */
-	private String createJSONObjectUser(String email, String password, String role) {
+	private String createJSONObjectRegistration(String email, String password, String role) {
+		var jsonObject = new JSONObject();
 		var jsonUser = new JSONObject();
 		jsonUser.put("username", email);
 		jsonUser.put("password", password);
-		var jsonRole = new JSONObject(sendGetRoleRequest(role));
-		jsonUser.put("role", jsonRole);
-		return jsonUser.toString();
-	}
-	
-	/**
-	 * Creates an AdminDto JSON object from its parameters
-	 * 
-	 * @param email - user's email
-	 * @return String - AdminDto JSON object
-	 */
-	private String createJSONObjectAdmin(String email) {
-		var jsonAdmin = new JSONObject();
-		var jsonUser = new JSONObject(sendGetUserRequest(email));
-		jsonAdmin.put("user", jsonUser);
-		return jsonAdmin.toString();
+		jsonObject.put("userDto", jsonUser);
+		jsonObject.put("roleName", role);
+		switch(role) {
+			case Constants.STD_ROLE:
+				jsonObject.put("studentDto", createJSONObjectStudent());
+				break;
+			case Constants.CMP_ROLE:
+				jsonObject.put("companyDto", createJSONObjectCompany());
+				break;
+			default:
+				break;
+		}
+		return jsonObject.toString();
 	}
 	
 	/**
 	 * Creates a StudentDto JSON object from its parameters
 	 *
-	 * @param email - user's email
-	 * @param name - student name
-	 * @param dni - studnet DNI
-	 * @param phoneNumber - student phone number
-	 * @param studies - student studies
-	 * @param description - student description
-	 * @param profilePicture - student's profile picture
-	 * @return String - StudentDto JSON object
+	 * @return JSONObject - StudentDto JSON object
 	 */
-	private String createJSONObjectStudent(String email, String name, String dni, String phoneNumber,
-			String studies, String description, String picturePath) {
+	private JSONObject createJSONObjectStudent() {
 		var jsonStudent = new JSONObject();
-		jsonStudent.put("name", name);
-		jsonStudent.put("dni", dni);
-		jsonStudent.put("description", description);
-		jsonStudent.put("studies", studies);
-		jsonStudent.put("phoneNumber", phoneNumber);
-		jsonStudent.put("profilePicture", picturePath);
-		var jsonUser = new JSONObject(sendGetUserRequest(email));
-		jsonStudent.put("user", jsonUser);
-		return jsonStudent.toString();
+		jsonStudent.put("name", signUpStudentLayout.getNameField().getValue());
+		jsonStudent.put("dni", signUpStudentLayout.getDniField().getValue());
+		jsonStudent.put("description", signUpStudentLayout.getDescriptionField().getValue());
+		jsonStudent.put("studies", signUpStudentLayout.getStudiesField().getValue());
+		jsonStudent.put("phoneNumber", signUpStudentLayout.getPhoneField().getValue());
+		jsonStudent.put("profilePicture", signUpStudentLayout.getMemoryBuffer().getFileName());
+		return jsonStudent;
 	}
 	
 	/**
 	 * Creates a CompanyDto JSON object from its parameters
 	 *
-	 * @param email - company's user email
-	 * @param name - company name
-	 * @param cif - company CIF
-	 * @param country - company origin country
-	 * @param description - company description
-	 * @param logo - company's logo name
-	 * @return String - CompanyDTO JSON object
+	 * @return JSONObject - CompanyDTO JSON object
 	 */
-	private String createJSONObjectCompany(String email, String name, String cif, String country,
-			String description, String logo) {
+	private JSONObject createJSONObjectCompany() {
 		var jsonCompany = new JSONObject();
-		jsonCompany.put("name", name);
-		jsonCompany.put("cif", cif);
-		jsonCompany.put("country", country);
-		jsonCompany.put("description", description);
-		jsonCompany.put("profilePicture", logo);
-		var jsonUser = new JSONObject(sendGetUserRequest(email));
-		jsonCompany.put("user", jsonUser);
-		return jsonCompany.toString();
+		jsonCompany.put("name", signUpCompanyLayout.getNameField().getValue());
+		jsonCompany.put("cif", signUpCompanyLayout.getCifField().getValue());
+		jsonCompany.put("country", signUpCompanyLayout.getCountryComboBox().getOptionalValue().get());
+		jsonCompany.put("description", signUpCompanyLayout.getDescriptionField().getValue());
+		jsonCompany.put("profilePicture", signUpCompanyLayout.getMemoryBuffer().getFileName());
+		return jsonCompany;
 	}
 	
 	//HTTP REQUESTS
@@ -451,47 +392,8 @@ public class CreateNewUser extends CustomAppLayout implements HasUrlParameter<St
 	 * @return boolean - true if 201 CREATED, false if not
 	 */
 	private boolean sendCreateUserRequest(String email, String password, String role) {
-		var requestBody = createJSONObjectUser(email, password, role);	//Formamos el objeto JSON del usuarios
 		var httpRequest = new HttpRequest(Constants.USERS_REQ);
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		return httpRequest.executeHttpPost(authToken, requestBody);
-	}
-	
-	/**
-	 * Sends the request to get a specific role object
-	 *
-	 * @param role - role to get
-	 * @return String - role JSON object requested
-	 */
-	private String sendGetRoleRequest(String role) {
-		var httpRequest = new HttpRequest(Constants.AUTH_REQ + "/role?name=" + role);
-		return httpRequest.executeHttpGet(null);
-	}
-	
-	/**
-	 * Sends a request to verify if a user exists or not
-	 *
-	 * @param email - user email to verify
-	 * @return HttpResponse - request result
-	 */
-	private String sendGetUserRequest(String email) {
-		var httpRequest = new HttpRequest(Constants.USERS_REQ + "/user?username=" + email);
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		return httpRequest.executeHttpGet(authToken);
-	}
-	
-	/**
-	 * Sends the request to create a student, company or administrator
-	 * 
-	 * @param postUrl - http url to send the request
-	 * @param requestBody - request body needed to send the post request
-	 * @return boolean - true if it has been created, false if not
-	 */
-	private boolean sendCreateUserCategory(String postUrl, String requestBody) {
-		if(postUrl == null || requestBody == null) {
-			return false;
-		}
-		var httpRequest = new HttpRequest(postUrl);
+		var requestBody = createJSONObjectRegistration(email, password, role);	//Formamos el objeto JSON del usuarios
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
 		return httpRequest.executeHttpPost(authToken, requestBody);
 	}

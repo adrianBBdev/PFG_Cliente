@@ -32,19 +32,22 @@ import lombok.NoArgsConstructor;
 public class FavoriteJobOffersView extends CustomAppLayout implements BeforeEnterObserver {
 
 	private static final long serialVersionUID = 3323452156025021583L;
-	private String userType, username;
+	//Etiquetas
 	private static final String HEADER_TAG = "Ofertas guardadas";
+	//Componentes
 	private VerticalLayout mainLayout, contentLayout;
 	private CustomJobOffersGrid jobOffersGrid;
 	private CustomNavigationOptionsPageLayout navigationOptionsPageLayout;
 	private CustomNumElementsSelect favoriteDisplaySelect;
+	//Atributos
+	private String userRole, username;
 	private Integer numPage;
 	
 	@Override
 	public void beforeEnter(BeforeEnterEvent event) {
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		userType = (String) VaadinSession.getCurrent().getAttribute("role");
-		if(authToken == null || !userType.equals(Constants.STD_ROLE)){
+		userRole = (String) VaadinSession.getCurrent().getAttribute("role");
+		if(authToken == null || !userRole.equals(Constants.STD_ROLE)){
 			event.forwardTo(LoginView.class);
 			return;
 		}
@@ -62,10 +65,10 @@ public class FavoriteJobOffersView extends CustomAppLayout implements BeforeEnte
 		mainLayout.setWidthFull();
 		numPage = 0;
 		favoriteDisplaySelect = new CustomNumElementsSelect();
-		favoriteDisplaySelect.addValueChangeListener(event -> getContentLayout());
-		getContentLayout();
+		favoriteDisplaySelect.addValueChangeListener(event -> setContentLayout());
+		setContentLayout();
 		var baseVerticalLayout = new VerticalLayout();
-		baseVerticalLayout.add(new H1(HEADER_TAG), mainLayout, navigationOptionsPageLayout, favoriteDisplaySelect);
+		baseVerticalLayout.add(new H1(HEADER_TAG), mainLayout, favoriteDisplaySelect ,navigationOptionsPageLayout);
 		baseVerticalLayout.setAlignItems(Alignment.CENTER);
 		this.setContent(baseVerticalLayout);
 	}
@@ -74,10 +77,11 @@ public class FavoriteJobOffersView extends CustomAppLayout implements BeforeEnte
 	 * Gets all components that will be added to the main layout;
 	 * 
 	 */
-	private void getContentLayout() {
+	private void setContentLayout() {
 		mainLayout.removeAll();
 		contentLayout = new VerticalLayout();
-		contentLayout.setWidth("70%");
+		contentLayout.setMaxWidth("1300px");
+		contentLayout.setWidthFull();
 		var favoriteJobOffersBody = sendGetFavoriteJobOffers(username);
 		if(favoriteJobOffersBody != null) {
 			var jsonObject = new JSONObject(favoriteJobOffersBody);
@@ -87,29 +91,13 @@ public class FavoriteJobOffersView extends CustomAppLayout implements BeforeEnte
 			setNavigationOptionsPageLayout(isShowingFirst, isShowingLast);
 			if(!isEmpty) {
 				var contentArray = jsonObject.getJSONArray("content");
-				if(userType.equals(Constants.STD_ROLE)) {
-					jobOffersGrid = new CustomJobOffersGrid(contentArray, userType, true);
+				if(userRole.equals(Constants.STD_ROLE)) {
+					jobOffersGrid = new CustomJobOffersGrid(contentArray, userRole, true);
 					contentLayout.add(jobOffersGrid);
 					mainLayout.add(contentLayout);
 				}
 			}
 		}
-	}
-	
-	/**
-	 * Sends the http get request to obtain all the favorite job offers of the user
-	 * 
-	 * @param username - user's username
-	 * @return String - response body
-	 */
-	private String sendGetFavoriteJobOffers(String username) {
-		var httpRequest = new HttpRequest(Constants.FAV_REQ + "?username=" + username + "&page=" + numPage);
-		var numElements = favoriteDisplaySelect.getValue();
-		if(numElements != null) {
-			httpRequest.setUrl(httpRequest.getUrl() + "&size=" + numElements);
-		}
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		return httpRequest.executeHttpGet(authToken);
 	}
 	
 	/**
@@ -135,7 +123,7 @@ public class FavoriteJobOffersView extends CustomAppLayout implements BeforeEnte
 	 */
 	private void nextPageListener() {
 		numPage++;
-		getContentLayout();
+		setContentLayout();
 	}
 
 	/**
@@ -143,7 +131,22 @@ public class FavoriteJobOffersView extends CustomAppLayout implements BeforeEnte
 	 */
 	private void prevPageListener() {
 		numPage--;
-		getContentLayout();
+		setContentLayout();
 	}
-
+	
+	/**
+	 * Sends the http get request to obtain all the favorite job offers of the user
+	 * 
+	 * @param username - user's username
+	 * @return String - response body
+	 */
+	private String sendGetFavoriteJobOffers(String username) {
+		var httpRequest = new HttpRequest(Constants.FAV_REQ + "?username=" + username + "&page=" + numPage);
+		var numElements = favoriteDisplaySelect.getValue();
+		if(numElements != null) {
+			httpRequest.setUrl(httpRequest.getUrl() + "&size=" + numElements);
+		}
+		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
+		return httpRequest.executeHttpGet(authToken);
+	}
 }

@@ -42,6 +42,7 @@ public class ManageUsersView extends CustomAppLayout implements BeforeEnterObser
 	private static final String ADM_TAB = "Administradores";
 	private static final String STD_TAB = "Estudiantes";
 	private static final String CMP_TAB = "Empresas";
+	private static final String SEL_USR_ERR = "No se han podido obtener los usuarios seleccionados";
 	//Componentes
 	private VerticalLayout mainLayout, tabContentLayout;
 	private CustomNavigationOptionsPageLayout navigationOptionsPageLayout;
@@ -147,9 +148,15 @@ public class ManageUsersView extends CustomAppLayout implements BeforeEnterObser
 		setGridLayout(companysBody, Constants.CMP_ROLE);
 	}
 	
-	private void setGridLayout(String usersBody, String userType) {
+	/**
+	 * Sets up the grid which displays the list of users
+	 * 
+	 * @param usersBody - list of users to display
+	 * @param userRole - user's role of the users that are being displayed
+	 */
+	private void setGridLayout(String usersBody, String userRole) {
 		if(usersBody == null) {
-			new CustomNotification("No se han podido obtener los usuarios seleccionados", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(SEL_USR_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
 		try {
@@ -157,14 +164,16 @@ public class ManageUsersView extends CustomAppLayout implements BeforeEnterObser
 			var contentArray = jsonObject.getJSONArray("content");
 			var isShowingFirst = jsonObject.getBoolean("first");
 			var isShowingLast = jsonObject.getBoolean("last");
-			var usersGrid = new CustomUsersGrid(contentArray, userType);
+			var usersGrid = new CustomUsersGrid(contentArray, userRole);
 			var usersLayout = new VerticalLayout();
-			usersLayout.setWidth("50%");
+			var maxWidth = (userRole.equals(Constants.ADM_ROLE)) ? "800px" : "1200px";
+			usersLayout.setMaxWidth(maxWidth);
+			usersLayout.setWidthFull();
 			usersLayout.add(usersGrid);
 			setNavigationOptionsPageLayout(isShowingFirst, isShowingLast);
-			tabContentLayout.add(addNewUserButton, usersLayout, navigationOptionsPageLayout, customSelect);
+			tabContentLayout.add(addNewUserButton, usersLayout, customSelect, navigationOptionsPageLayout);
 		} catch (JSONException e) {
-			new CustomNotification("No se han podido obtener los usuarios seleccionados", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(SEL_USR_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
 	}
@@ -206,6 +215,11 @@ public class ManageUsersView extends CustomAppLayout implements BeforeEnterObser
 		setTabContent(userTabs.getSelectedTab());
 	}
 	
+	/**
+	 * Listener assigned to the create user option button
+	 * 
+	 * @param label
+	 */
 	private void addNewUserButtonListener (String label) {
 		var userCategory = new String();
 		switch(label) {
@@ -221,6 +235,12 @@ public class ManageUsersView extends CustomAppLayout implements BeforeEnterObser
 		}
 		this.getUI().get().navigate(Constants.CREATE_USER_PATH + "/" + userCategory);
 	}
+	
+	/**
+	 * Listener assigned to the Select component which displays the number of elements
+	 * 
+	 * @param value - select's value
+	 */
 	
 	private void customSelectListener(Integer value) {
 		numElements = value;

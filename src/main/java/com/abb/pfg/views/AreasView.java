@@ -23,7 +23,7 @@ import com.vaadin.flow.server.VaadinSession;
 
 import lombok.NoArgsConstructor;
 /**
- * View which admins uses to create new job offer areas
+ * View that administrators use to manage areas
  *
  * @author Adrian Barco Barona
  * @version 1.0
@@ -35,23 +35,36 @@ import lombok.NoArgsConstructor;
 public class AreasView extends CustomAppLayout implements BeforeEnterObserver {
 
 	private static final long serialVersionUID = 2715604459727286136L;
+	//Etiquetas
 	private static final String HEADER_TAG = "Áreas disponibles";
+	private static final String NEW_AREA_TAG = "Nuevo área";
+	private static final String ADD_AREA_TAG = "Añadir nuevo área";
+	private static final String DEL_AREA_TAG = "Eliminar área";
+	private static final String ADD_AREA_MSG = "Área añadido con éxito";
+	private static final String ADD_AREA_ERR = "No se ha podido añadir el área";
+	private static final String DEL_AREA_MSG = "Área eliminado con éxito";
+	private static final String DEL_AREA_ERR = "No se ha podido eliminar el área";
+	//Componentes
 	private VerticalLayout mainLayout;
 	private HorizontalLayout buttonsLayout;
-	private CustomSelectAreas customSelect;
+	private CustomSelectAreas customSelectAreas;
 	private TextField areaField;
 	private Button addButton, goBackButton, deleteButton;
-	private String userType;
+	//Atributos
+	private String userRole;
 
 	@Override
 	public void beforeEnter(BeforeEnterEvent event) {
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		userType = (String) VaadinSession.getCurrent().getAttribute("role");
-		if(authToken == null || !userType.equals(Constants.ADM_ROLE)){
+		if(authToken == null){
 			event.forwardTo(Constants.LOGIN_PATH);
 			return;
 		}
-		userType = (String) VaadinSession.getCurrent().getAttribute("role");
+		userRole = (String) VaadinSession.getCurrent().getAttribute("role");
+		if(!userRole.equals(Constants.ADM_ROLE)) {
+			event.forwardTo(Constants.LOGIN_PATH);
+			return;	
+		}
 		init();		//Inicializamos la vista y añadimos el layout principal
 	}
 
@@ -63,17 +76,25 @@ public class AreasView extends CustomAppLayout implements BeforeEnterObserver {
 		mainLayout = new VerticalLayout();		//Inicializamos el layout principal
 		mainLayout.setAlignItems(Alignment.CENTER);
 		mainLayout.setWidthFull();
-		customSelect = new CustomSelectAreas();
-		customSelect.setWidth("40%");
-		areaField = new TextField("Nuevo área");
-		areaField.setMaxLength(50);
-		areaField.setWidth("40%");
-		getButtonsLayout();
-		mainLayout.add(customSelect, areaField, buttonsLayout);
+		setContentLayout();
+		mainLayout.add(customSelectAreas, areaField, buttonsLayout);
 		var baseVerticalLayout = new VerticalLayout();
 		baseVerticalLayout.add(new H1(HEADER_TAG), mainLayout);
 		baseVerticalLayout.setAlignItems(Alignment.CENTER);
 		this.setContent(baseVerticalLayout);
+	}
+	
+	/**
+	 * Sets up the content of the main layout
+	 * 
+	 */
+	private void setContentLayout() {
+		customSelectAreas = new CustomSelectAreas();
+		customSelectAreas.setWidth("40%");
+		areaField = new TextField(NEW_AREA_TAG);
+		areaField.setMaxLength(50);
+		areaField.setWidth("40%");
+		getButtonsLayout();
 	}
 	
 	/**
@@ -82,15 +103,15 @@ public class AreasView extends CustomAppLayout implements BeforeEnterObserver {
 	 */
 	private void getButtonsLayout() {
 		buttonsLayout = new HorizontalLayout();
-		addButton = new Button("Añadir nuevo área");
+		addButton = new Button(ADD_AREA_TAG);
 		addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 		addButton.addClickListener(event -> addButtonListener());
-		deleteButton = new Button("Eliminar área");
+		deleteButton = new Button(DEL_AREA_TAG);
 		deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
-		deleteButton.addClickListener(event -> deleteButtonListener());
+		deleteButton.addClickListener(event -> deleteButtonListener(customSelectAreas.getValue()));
 		goBackButton = new Button(Constants.GOBACK_TAG);
 		goBackButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-		goBackButton.addClickListener(event -> goBackButtonListener());
+		goBackButton.addClickListener(event -> getUI().ifPresent(ui -> ui.navigate(Constants.OFFERS_PATH)));
 		buttonsLayout.add(addButton, deleteButton, goBackButton);
 	}
 	
@@ -109,38 +130,32 @@ public class AreasView extends CustomAppLayout implements BeforeEnterObserver {
 		jsonObject.put("name", areaField.getValue());
 		var requestBody = jsonObject.toString();
 		if(httpRequest.executeHttpPost(authToken, requestBody)) {
-			customSelect.refreshCustomSelectAreas();
+			customSelectAreas.refreshCustomSelectAreas();
 			areaField.setValue("");
-			new CustomNotification("Área añadido con éxito", NotificationVariant.LUMO_SUCCESS);
+			new CustomNotification(ADD_AREA_MSG, NotificationVariant.LUMO_SUCCESS);
 			return;
 		}
-		new CustomNotification("No se ha podido añadir el área", NotificationVariant.LUMO_SUCCESS);
+		new CustomNotification(ADD_AREA_ERR, NotificationVariant.LUMO_SUCCESS);
 	}
 	
 	/**
 	 * Listener assigned to the delete button option
 	 * 
+	 * @param areaValue - select's current value
+	 * 
 	 */
-	private void deleteButtonListener() {
-		if(customSelect.getValue() == null) {
+	private void deleteButtonListener(String areaValue) {
+		if(areaValue == null) {
 			new CustomNotification(Constants.ERROR_TEXT, NotificationVariant.LUMO_WARNING);
 			return;
 		}
-		var httpRequest = new HttpRequest(Constants.AREAS_REQ + "?name=" + customSelect.getValue());
+		var httpRequest = new HttpRequest(Constants.AREAS_REQ + "?name=" + areaValue);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
 		if(httpRequest.executeHttpDelete(authToken)) {
-			customSelect.refreshCustomSelectAreas();
-			new CustomNotification("Área eliminado con éxito", NotificationVariant.LUMO_SUCCESS);
+			customSelectAreas.refreshCustomSelectAreas();
+			new CustomNotification(DEL_AREA_MSG, NotificationVariant.LUMO_SUCCESS);
 			return;
 		}
-		new CustomNotification("No se ha podido eliminar el área", NotificationVariant.LUMO_SUCCESS);
-	}
-	
-	/**
-	 * Listener assigned to the go back button option
-	 * 
-	 */
-	private void goBackButtonListener() {
-		this.getUI().ifPresent(ui -> ui.navigate(Constants.OFFERS_PATH));
+		new CustomNotification(DEL_AREA_ERR, NotificationVariant.LUMO_SUCCESS);
 	}
 }

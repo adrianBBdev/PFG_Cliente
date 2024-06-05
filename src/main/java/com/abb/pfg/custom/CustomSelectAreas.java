@@ -1,6 +1,3 @@
-/**
- * 
- */
 package com.abb.pfg.custom;
 
 import java.util.ArrayList;
@@ -54,6 +51,17 @@ public class CustomSelectAreas extends Select<String> {
 	}
 	
 	/**
+	 * Refresh the component content
+	 * 
+	 */
+	public void refreshCustomSelectAreas() {
+		this.removeAll();
+		getAreaSelectionContent();
+	}
+	
+	//HTTP REQUESTS
+	
+	/**
 	 * Sends the http request to obtain the areas from the app data
 	 *
 	 * @return String - response body or null
@@ -63,15 +71,6 @@ public class CustomSelectAreas extends Select<String> {
 		var httpRequest = new HttpRequest(getUrl);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
 		return httpRequest.executeHttpGet(authToken);
-	}
-	
-	/**
-	 * Refresh the component content
-	 * 
-	 */
-	public void refreshCustomSelectAreas() {
-		this.removeAll();
-		getAreaSelectionContent();
 	}
 
 }

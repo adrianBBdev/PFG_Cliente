@@ -7,10 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
 
 import com.abb.pfg.custom.CustomNotification;
@@ -276,18 +272,96 @@ public class SignUpView extends Composite<VerticalLayout> implements BeforeEnter
 			new CustomNotification(Constants.EMAIL_ERROR, NotificationVariant.LUMO_PRIMARY);
 		} else { 																//Si no existen, procedo a realizar peticion de registro
 			if(signUp()) {														//Registro correcto, aviso a usuario
-				var signUpResult = createStudentOrCompany(selectedOption);
-				if(signUpResult) { 												//Si registro correcto
-					new CustomNotification(Constants.SIGN_UP_SUCC, NotificationVariant.LUMO_SUCCESS);
-				} else {														//Si registro fallido
-					new CustomNotification(Constants.SIGNUP_ERROR, NotificationVariant.LUMO_ERROR);
+				if(selectedOption.equals(Constants.STUDENT_TAG) && !signUpStudentLayout.getMemoryBuffer().getFileName().isEmpty()) {
+					processImage(signUpStudentLayout.getMemoryBuffer().getInputStream(), signUpStudentLayout.getMemoryBuffer().getFileName());
+				} else if(selectedOption.equals(Constants.COMPANY_TAG) && !signUpCompanyLayout.getMemoryBuffer().getFileName().isEmpty()) {
+					processImage(signUpCompanyLayout.getMemoryBuffer().getInputStream(), signUpCompanyLayout.getMemoryBuffer().getFileName());
 				}
+				new CustomNotification(Constants.SIGN_UP_SUCC, NotificationVariant.LUMO_SUCCESS);
 			} else {															//Fallo en el registro, aviso a usuario
 				new CustomNotification(Constants.SIGNUP_ERROR, NotificationVariant.LUMO_ERROR);
 			}
 			this.getUI().ifPresent(ui -> ui.navigate(Constants.LOGIN_PATH));	//Volvemos a pagina de inicio tanto si ha ido bien como si ha ido mal
 		}
 	}
+	
+	//PARSEOS JSON
+	
+	/**
+	 * Creates a UserDto JSON object from its parameters
+	 *
+	 * @param email - user email
+	 * @param password - user password
+	 * @param role - user role
+	 * @return String - UserDto JSON object
+	 */
+	private String createJSONObjectRegistration(String email, String password, String role) {
+		var jsonObject = new JSONObject();
+		var jsonUser = new JSONObject();
+		jsonUser.put("username", email);
+		jsonUser.put("password", password);
+		jsonObject.put("userDto", jsonUser);
+		jsonObject.put("roleName", role);
+		//Validar student o company
+		if(role.equals(Constants.STD_ROLE)) {
+			var jsonStudent = createJSONObjectStudent();
+			jsonObject.put("studentDto", jsonStudent);
+		} else {
+			var jsonCompany = createJSONObjectCompany();
+			jsonObject.put("companyDto", jsonCompany);
+		}
+		return jsonObject.toString();
+	}
+
+	/**
+	 * Creates a StudentDto JSON object from its parameters
+	 *
+	 * @return JSONObject - StudentDto JSON object
+	 */
+	private JSONObject createJSONObjectStudent() {
+		var jsonStudent = new JSONObject();
+		jsonStudent.put("name", signUpStudentLayout.getNameField().getValue());
+		jsonStudent.put("dni", signUpStudentLayout.getDniField().getValue());
+		jsonStudent.put("description", signUpStudentLayout.getDescriptionField().getValue());
+		jsonStudent.put("studies", signUpStudentLayout.getStudiesField().getValue());
+		jsonStudent.put("phoneNumber", signUpStudentLayout.getPhoneField().getValue());
+		jsonStudent.put("profilePicture", signUpStudentLayout.getMemoryBuffer().getFileName());
+		return jsonStudent;
+	}
+
+	/**
+	 * Creates a CompanyDto JSON object from its parameters
+	 *
+	 * @return JSONObject - CompanyDTO JSON object
+	 */
+	private JSONObject createJSONObjectCompany() {
+		var jsonCompany = new JSONObject();
+		jsonCompany.put("name", signUpCompanyLayout.getNameField().getValue());
+		jsonCompany.put("cif", signUpCompanyLayout.getCifField().getValue());
+		jsonCompany.put("country", signUpCompanyLayout.getCountryComboBox().getOptionalValue().get());
+		jsonCompany.put("description", signUpCompanyLayout.getDescriptionField().getValue());
+		jsonCompany.put("profilePicture", signUpCompanyLayout.getMemoryBuffer().getFileName());
+		return jsonCompany;
+	}
+
+	/**
+	 * Parses the type of user to the role that is going to have
+	 *
+	 * @param role - type of user selected
+	 * @return String - the role the user is going to have
+	 */
+	private String parseRoles(String role) {
+		switch(role) {
+		 	case Constants.STUDENT_TAG:
+		 		return Constants.STD_ROLE;
+		 	case Constants.COMPANY_TAG:
+		 		return Constants.CMP_ROLE;
+		 	default:
+		 		return null;
+		}
+	}
+	
+	//HTTP REQUESTS
 
 	/**
 	 * Performs the user sign up
@@ -299,27 +373,6 @@ public class SignUpView extends Composite<VerticalLayout> implements BeforeEnter
 		var password = signUpUserLayout.getPasswordField1().getOptionalValue().get();
 		var role = parseRoles(radioButton.getOptionalValue().get());
 		return sendSignUpRequest(username, password, role);				//Ejecutamos peticion de registro
-	}
-
-	/**
-	 * Performs the signing up of the student or company depending on the param value
-	 *
-	 * @param isStudent - true if it has to create a student, false if it has to create a company
-	 * @return boolean - true if 201 CREATED, false if not
-	 */
-	private boolean createStudentOrCompany(String selectedOption) {
-		var isOptionSignUpOk = true;
-		if(selectedOption.equals(Constants.STUDENT_TAG)) {																	//Si es estudiante
-			isOptionSignUpOk = sendSignUpStudentRequest(signUpStudentLayout.getNameField().getValue(), 			//Tramitar datos de estudiante
-					signUpStudentLayout.getDniField().getValue(), signUpStudentLayout.getPhoneField().getValue(), 
-					signUpStudentLayout.getStudiesField().getValue(), signUpStudentLayout.getDescriptionField().getValue(), 
-					signUpUserLayout.getEmailField().getValue());
-		} else {																		//Si es empresa
-			isOptionSignUpOk = sendSignUpCompanyRequest(signUpCompanyLayout.getNameField().getValue(), 			//Tramitar datos de empresa
-					signUpCompanyLayout.getCifField().getValue(), signUpCompanyLayout.getCountryComboBox().getOptionalValue().get(),
-					signUpCompanyLayout.getDescriptionField().getValue(), signUpUserLayout.getEmailField().getValue());
-		}
-		return isOptionSignUpOk;
 	}
 
 	/**
@@ -346,43 +399,7 @@ public class SignUpView extends Composite<VerticalLayout> implements BeforeEnter
 		}
 		return true;
 	}
-
-	/**
-	 * Sends the request to get a specific role object
-	 *
-	 * @param role - role to get
-	 * @return String - role JSON object requested
-	 */
-	private String sendGetRoleRequest(String role) {
-		var httpClient = HttpClients.createDefault();					//Peticion para obtener el rol
-		var urlgetRole = Constants.AUTH_REQ + "/role?name=" + role;
-		var httpGet = new HttpGet(urlgetRole);
-		try {															//Ejecutamos peticion
-			var httpResponse = httpClient.execute(httpGet);
-			var httpStatus = httpResponse.getStatusLine().getStatusCode();
-			if(httpStatus == HttpStatus.SC_OK) {						//OK, extraemos objeto Rol
-				return EntityUtils.toString(httpResponse.getEntity());
-			}
-			return null;											//Resto, devolvemos NULL
-		} catch (IOException | NullPointerException e) {
-			return null;
-		}
-	}
-
-	/**
-	 * Sends the user sign up request
-	 *
-	 * @param email - user email
-	 * @param password - user password
-	 * @param role - user role
-	 * @return boolean - true if 201 CREATED, false if not
-	 */
-	private boolean sendSignUpRequest(String email, String password, String role) {
-		var httpRequest = new HttpRequest(Constants.AUTH_REQ + "/signUp");
-		var requestBody = createJSONObjectUser(email, password, role);	//Formamos el objeto JSON del usuarios
-		return httpRequest.executeHttpPost(null, requestBody);
-	}
-
+	
 	/**
 	 * Verifies if the DNI or the CIF given as parameter already exists
 	 *
@@ -402,141 +419,16 @@ public class SignUpView extends Composite<VerticalLayout> implements BeforeEnter
 	}
 
 	/**
-	 * Sends the POST request to create a student
-	 *
-	 * @param name - student name
-	 * @param dni - student DNI
-	 * @param phone - student phone number
-	 * @param studies - student studies
-	 * @param description - student description
-	 * @param email - student username
-	 * @return boolean - true if 201 CREATED, false if not
-	 */
-	private boolean sendSignUpStudentRequest(String name, String dni, String phone,
-			String studies, String description, String email) {
-		var responseBody = sendGetUserRequest(email);
-		//Formamos el objeto JSON del usuario
-		var picName = signUpStudentLayout.getMemoryBuffer().getFileName();
-		if(!picName.isEmpty()) {
-			processImage(signUpStudentLayout.getMemoryBuffer().getInputStream(), picName);
-		}
-		var requestBody = createJSONObjectStudent(name, dni, phone, studies, description, picName, responseBody);
-		//Construimos la petición POST y la ejecutamos
-		return executeSignUpStudentOrCompanyRequest(Constants.AUTH_REQ + "/student", requestBody);
-	}
-
-	/**
-	 * Sends the POST request to create a Company
-	 *
-	 * @param name - company name
-	 * @param cif - company CIF
-	 * @param country - company origin country
-	 * @param description - company description
-	 * @param email - company user email
-	 * @return boolean - true if completed, false if not
-	 */
-	private boolean sendSignUpCompanyRequest(String name, String cif, String country, String description, String email) {
-		var userEntity = sendGetUserRequest(email);
-		var logoName = signUpCompanyLayout.getMemoryBuffer().getFileName();
-		processImage(signUpCompanyLayout.getMemoryBuffer().getInputStream(), logoName);
-		//Formamos el objeto JSON del usuario
-		var requestBody = createJSONObjectCompany(name, cif, country, description, logoName, userEntity);
-		//Construimos la petición POST y la ejecutamos
-		return executeSignUpStudentOrCompanyRequest(Constants.AUTH_REQ + "/company", requestBody);
-	}
-
-	/**
-	 * Executes POST request to create a Student or a Company
-	 *
-	 * @param url - POST request URL to create the Student or Company
-	 * @param requestBody - required body request to complete POST request
-	 * @return boolean - true if 201 CREATED, false if not
-	 */
-	private boolean executeSignUpStudentOrCompanyRequest(String url, String requestBody) {
-		var httpRequest = new HttpRequest(url);
-		return httpRequest.executeHttpPost(null, requestBody);
-	}
-
-	/**
-	 * Creates a UserDto JSON object from its parameters
+	 * Sends the user sign up request
 	 *
 	 * @param email - user email
 	 * @param password - user password
 	 * @param role - user role
-	 * @return String - UserDto JSON object
+	 * @return boolean - true if 201 CREATED, false if not
 	 */
-	private String createJSONObjectUser(String email, String password, String role) {
-		var jsonUser = new JSONObject();
-		jsonUser.put("username", email);
-		jsonUser.put("password", password);
-		var jsonRole = new JSONObject(sendGetRoleRequest(role));
-		jsonUser.put("role", jsonRole);
-		return jsonUser.toString();
-	}
-
-	/**
-	 * Creates a StudentDto JSON object from its parameters
-	 *
-	 * @param name - student name
-	 * @param dni - studnet DNI
-	 * @param phoneNumber - student phone number
-	 * @param studies - student studies
-	 * @param description - student description
-	 * @param user - student user
-	 * @return String - StudentDto JSON object
-	 */
-	private String createJSONObjectStudent(String name, String dni, String phoneNumber,
-			String studies, String description, String picturePath, String user) {
-		var jsonStudent = new JSONObject();
-		jsonStudent.put("name", name);
-		jsonStudent.put("dni", dni);
-		jsonStudent.put("description", description);
-		jsonStudent.put("studies", studies);
-		jsonStudent.put("phoneNumber", phoneNumber);
-		jsonStudent.put("profilePicture", picturePath);
-		var jsonUser = new JSONObject(user);
-		jsonStudent.put("user", jsonUser);
-		return jsonStudent.toString();
-	}
-
-	/**
-	 * Creates a CompanyDto JSON object from its parameters
-	 *
-	 * @param name - company name
-	 * @param cif - company CIF
-	 * @param country - company origin country
-	 * @param description - company description
-	 * @param logo - company's logo name
-	 * @param user - company user
-	 * @return String - CompanyDTO JSON object
-	 */
-	private String createJSONObjectCompany(String name, String cif, String country,
-			String description, String logo, String user) {
-		var jsonCompany = new JSONObject();
-		jsonCompany.put("name", name);
-		jsonCompany.put("cif", cif);
-		jsonCompany.put("country", country);
-		jsonCompany.put("description", description);
-		jsonCompany.put("profilePicture", logo);
-		var jsonUser = new JSONObject(user);
-		jsonCompany.put("user", jsonUser);
-		return jsonCompany.toString();
-	}
-
-	/**
-	 * Parses the type of user to the role that is going to have
-	 *
-	 * @param role - type of user selected
-	 * @return String - the role the user is going to have
-	 */
-	private String parseRoles(String role) {
-		switch(role) {
-		 	case Constants.STUDENT_TAG:
-		 		return Constants.STD_ROLE;
-		 	case Constants.COMPANY_TAG:
-		 		return Constants.CMP_ROLE;
-		 	default:
-		 		return null;
-		}
+	private boolean sendSignUpRequest(String email, String password, String role) {
+		var httpRequest = new HttpRequest(Constants.AUTH_REQ + "/signUp");
+		var requestBody = createJSONObjectRegistration(email, password, role);	//Formamos el objeto JSON del usuarios
+		return httpRequest.executeHttpPost(null, requestBody);
 	}
 }

@@ -107,13 +107,13 @@ public class LocationView extends CustomAppLayout implements BeforeEnterObserver
             MapLibre map = new MapLibre(new URI("https://demotiles.maplibre.org/style.json"));
             map.setStyle("https://api.maptiler.com/maps/streets/style.json?key=vYXVgPlhtQsWkGgfNsmu");
             map.setHeight("500px");
-            map.setWidth("80%");
+            map.setMaxWidth("1500px");
             map.setCenter(lng, lat);
             map.setZoomLevel(15);
             map.addMarker(lng, lat);
             mainLayout.add(map);
         } catch (URISyntaxException e) {
-        	new CustomNotification("Se ha producido un error", NotificationVariant.LUMO_ERROR);
+        	new CustomNotification(Constants.ERR_MSG, NotificationVariant.LUMO_ERROR);
         	throw new RuntimeException(e);
         }
 	}
@@ -128,16 +128,19 @@ public class LocationView extends CustomAppLayout implements BeforeEnterObserver
 		verticalLayout.setAlignItems(Alignment.CENTER);
 		var titleField = new TextField(Constants.OFFER_TAG);
 		titleField.setReadOnly(!titleField.isReadOnly());
-		titleField.setWidth("50%");
+		titleField.setMaxWidth("500px");
+		titleField.setWidthFull();
 		titleField.setValue(title);
 		var nameField = new TextField(Constants.COMPANY_TAG);
 		nameField.setReadOnly(!nameField.isReadOnly());
-		nameField.setWidth("50%");
+		nameField.setMaxWidth("500px");
+		nameField.setWidthFull();
 		nameField.setValue(name);
 		var addressField = new TextField(Constants.ADDRESS_TAG);
 		addressField.setReadOnly(!addressField.isReadOnly());
 		addressField.setValue(address);
-		addressField.setWidth("50%");
+		addressField.setMaxWidth("500px");
+		addressField.setWidthFull();
 		verticalLayout.add(titleField, nameField, addressField);
 		return verticalLayout;
 	}

@@ -13,7 +13,7 @@ public class Constants {
 	public static final String OFFER_PATH = "/availableJobOffers/jobOfferDetails";
 	public static final String SEND_REQ_PATH = "/sendRequest";
 	public static final String REQ_PATH = "/myRequests";
-	public static final String REQ_DET_PATH = "/requestDetails";
+	public static final String REQ_DET_PATH = "/myRequests/requestDetails";
 	public static final String SV_OFFERS_PATH = "/savedOffers";
 	public static final String CHT_PATH = "/myChats";
 	public static final String LOC_PATH = "/availableJobOffers/jobOfferDetails/jobOfferLocation";
@@ -75,7 +75,7 @@ public class Constants {
 	public static final String SLRY_TAG = "Salario";
 	public static final String USER_INFO_TAG = "Información de usuario";
 	public static final String PRF_INFO_TAG = "Datos del perfil";
-	public static final String ITEMS_PER_PAGE_TAG = "Elementos por página";
+	public static final String ITEMS_PER_PAGE_TAG = "Elementos";
 	public static final String MEDIA_TAG = "Multimedia";
 	public static final String FILE_MEDIA_TAG = "Archivos multimedia";
 	public static final String RESOURCE_TAG = "Recurso";
@@ -111,13 +111,12 @@ public class Constants {
 	public static final String ADD_FILE_TAG = "Añadir archivo";
 	//Tamaños
 	public static final int DESC_LENGTH = 500;
-	public static final int MAX_IMAGE_SIZE = 2 * 1024 *1024;
-	public static final int MAX_VIDEO_SIZE = 20 * 1024 *1024;
+	public static final int MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+	public static final int MAX_VIDEO_SIZE = 20 * 1024 * 1024;
 	public static final int FIELDS_MAX_LENGTH = 50;
 	public static final int PASSWD_MAX_LENGTH = 20;
 	public static final int PASSWD_MIN_LENGTH = 12;
 	public static final int PHONE_AND_ID_LENGHT = 9;
-	public static final String STRD_SIZE = "30%";
 	//Expresiones regulares
 	public static final String DNI_REGEX = "[0-9]{8}[A-Za-z]";
 	public static final String CIF_REGEX = "[A-Za-z][0-9]{8}";
@@ -158,4 +157,5 @@ public class Constants {
 	public static final String PHONE_ERROR = "Introduzca un teléfono de contacto válido";
 	public static final String PROFILE_TAG = "Carga tu foto de perfil";
 	public static final String LOGO_TAG = "Carga el logo de la empresa";
+	public static final String JSON_ERR = "Error al parsear el objeto JSON: ";
 }

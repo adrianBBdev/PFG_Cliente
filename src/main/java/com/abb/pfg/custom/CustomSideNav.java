@@ -29,17 +29,17 @@ public class CustomSideNav extends SideNav{
 	private static final String PRF_TAB = "Mi perfil";
 	private static final String CR_OFF_TAB = "Crear nueva oferta";
 	private static final String NO_ACT_LABEL = "No hay acciones disponibles";
-	//Componentes
-	private String userType, username;
+	//Atributos
+	private String userRole, username;
 	
 	/**
 	 * Default class constructor
 	 * 
-	 * @param userType - user's role
+	 * @param userRole - user's role
 	 */
-	public CustomSideNav(String username, String userType) {
+	public CustomSideNav(String username, String userRole) {
 		this.username = username;
-		this.userType = userType;
+		this.userRole = userRole;
 		init();
 	}
 	
@@ -48,30 +48,29 @@ public class CustomSideNav extends SideNav{
 	 * 
 	 */
 	private void init() {
-		switch(userType) {
+		switch(userRole) {
 			case Constants.STD_ROLE:
-				var stPendingRequests = sendGetPendingRequests(username, userType);
-				getStudentOrCompanySideNavItems(userType, stPendingRequests);
+				var stPendingRequests = sendGetPendingRequests(username, userRole);
+				getStudentOrCompanySideNavItems(userRole, stPendingRequests);
 				break;
 			case Constants.CMP_ROLE:
-				var cmPendingRequests = sendGetPendingRequests(username, userType);
-				getStudentOrCompanySideNavItems(userType, cmPendingRequests);
+				var cmPendingRequests = sendGetPendingRequests(username, userRole);
+				getStudentOrCompanySideNavItems(userRole, cmPendingRequests);
 				break;
 			case Constants.ADM_ROLE:
 				getAdminSideNavItems();
 				break;
 			default:
 				noActionsSideNav();
-				break;
 		}
 	}
 	
 	/**
 	 * Gets the side navigation items depending on the user logged in
 	 * 
-	 * @param userType - user's role
+	 * @param userRole - user's role
 	 */
-	private void getStudentOrCompanySideNavItems(String userType, Integer pendingRequests) {
+	private void getStudentOrCompanySideNavItems(String userRole, Integer pendingRequests) {
 		var sideNavItemOff = new SideNavItem(OFF_TAB, Constants.OFFERS_PATH, VaadinIcon.SEARCH.create());
 		var sideNavItemReq = new SideNavItem(REQ_TAB, Constants.REQ_PATH, VaadinIcon.ENVELOPE_OPEN.create());
 		if(pendingRequests > 0) {
@@ -81,7 +80,7 @@ public class CustomSideNav extends SideNav{
 		}
 		var sideNavItemCht = new SideNavItem(CHT_TAB, Constants.CHT_PATH, VaadinIcon.CHAT.create());
 		var sideNavItemPrf = new SideNavItem(PRF_TAB, Constants.PROFILE_PATH, VaadinIcon.USER.create());
-		if(userType.equals(Constants.STD_ROLE)) {
+		if(userRole.equals(Constants.STD_ROLE)) {
 			this.addItem(sideNavItemOff, 
 						new SideNavItem(OFF_SV_TAB, Constants.SV_OFFERS_PATH, VaadinIcon.BOOKMARK.create()),
 						sideNavItemReq, sideNavItemCht, sideNavItemPrf);
@@ -115,12 +114,12 @@ public class CustomSideNav extends SideNav{
 		this.setLabel(NO_ACT_LABEL);
 	}
 	
-	private Integer sendGetPendingRequests(String username, String userType) {
+	private Integer sendGetPendingRequests(String username, String userRole) {
 		var httpRequest = new HttpRequest(Constants.REQ_REQ + "?requestStatus=" + Constants.PDG_TAG);
-		if(userType.equals(Constants.STD_ROLE)) {
-			httpRequest.setUrl(httpRequest.getUrl() + "&studentId=" + username);
-		} else if(userType.equals(Constants.CMP_ROLE)) {
-			httpRequest.setUrl(httpRequest.getUrl() + "&companyId=" + username);
+		if(userRole.equals(Constants.STD_ROLE)) {
+			httpRequest.setUrl(httpRequest.getUrl() + "&userId=" + username);
+		} else if(userRole.equals(Constants.CMP_ROLE)) {
+			httpRequest.setUrl(httpRequest.getUrl() + "&userId=" + username);
 		}
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
 		var responseBody = httpRequest.executeHttpGet(authToken);

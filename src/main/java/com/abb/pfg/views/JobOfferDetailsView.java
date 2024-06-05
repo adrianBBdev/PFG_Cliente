@@ -70,6 +70,9 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 	private static final String APPLY_TAG = "Inscribirme";
 	private static final String LOC_ERR = "Se ha producido un error. No se puede mostrar la localización";
 	private static final String RES_ACC_MSG = "Para ver los recursos multimedia necesitas estar registrado";
+	private static final String SHW_CMP_ERR = "No se ha podido obtener la empresa seleccionada";
+	private static final String ADD_RES_TAG = "Añadir recurso";
+	private static final String GET_RES_ERR = "No se han podido obtener los recursos solicitados";
 	//Components
 	private HorizontalLayout itemLayout,buttonsLayout;
 	private CustomNavigationOptionsPageLayout navigationOptionsPageLayout;
@@ -101,6 +104,10 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 
 	@Override
 	public void setParameter(BeforeEvent event, Long parameter) {
+		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
+		if(authToken == null){
+			event.forwardTo(LoginView.class);
+		}
 		if(parameter == null) {
 			event.forwardTo(AvailableOffersView.class);
 			return;
@@ -110,10 +117,6 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 	
 	@Override
 	public void beforeEnter(BeforeEnterEvent event) {
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		if(authToken == null){
-			event.forwardTo(LoginView.class);
-		}
 		userRole = (String) VaadinSession.getCurrent().getAttribute("role");
 		username = (String) VaadinSession.getCurrent().getAttribute("username");
 		jobOfferBody = sendJobOfferDetailsRequest(jobOfferId);
@@ -184,6 +187,10 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 		}
 	}
 	
+	/**
+	 * Sets up the components that displays the job offer details
+	 * 
+	 */
 	private void setOfferDetailsLayout() {
 		parseJobOfferJSON();
 		itemLayout = new HorizontalLayout();
@@ -203,18 +210,26 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 		tabContentLayout.add(itemLayout, buttonsLayout);
 	}
 	
+	/**
+	 * Sets up the layout that displays the resources
+	 * 
+	 */
 	private void setResourcesLayout() {
-		newResourceButton = new Button("Añadir recurso", new Icon(VaadinIcon.PLUS_CIRCLE_O));
+		newResourceButton = new Button(ADD_RES_TAG, new Icon(VaadinIcon.PLUS_CIRCLE_O));
 		newResourceButton.addClickListener(event -> addNewResourceButtonListener());
 		customSelect = new CustomNumElementsSelect();
 		customSelect.addValueChangeListener(event -> customSelectListener(event.getValue()));
 		setGridLayout();
 	}
 	
+	/**
+	 * Sets up the grid that displays the resources
+	 * 
+	 */
 	private void setGridLayout() {
 		var resourcesBody = sendGetResourcesRequest(Constants.RES_REQ + "?jobOfferCode=" + jobOfferId, numPage, numElements);
 		if(resourcesBody == null) {
-			new CustomNotification("No se han podido obtener los recursos solicitados", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(GET_RES_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
 		parseJSONResourcesList(resourcesBody);
@@ -577,12 +592,16 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 		dialog.close();
 	}
 	
+	/**
+	 * Listener assigned to the display company option
+	 * 
+	 */
 	private void showCompanyInfoListener() {
 		var companyId = new String();
 		try {
 			companyId = new JSONObject(jobOfferBody).getJSONObject("company").getJSONObject("user").getString("username");
 		} catch (JSONException e) {
-			new CustomNotification("No se ha podido obtener la empresa seleccionada", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(SHW_CMP_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
 		VaadinSession.getCurrent().setAttribute("userId", companyId);
@@ -591,16 +610,29 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 		return;
 	}
 	
+	/**
+	 * Listener assigned to the next page option button
+	 * 
+	 */
 	private void nextPageListener() {
 		numPage++;
 		setTabContent(jobOfferTabs.getSelectedTab());
 	}
 	
+	/**
+	 * Listener assigned to the previous page option button
+	 * 
+	 */
 	private void prevPageListener() {
 		numPage--;
 		setTabContent(jobOfferTabs.getSelectedTab());
 	}
 	
+	/**
+	 * Listener assigned to the Select component which displays the number of elements
+	 * 
+	 * @param value - select's value
+	 */
 	private void customSelectListener(Integer value) {
 		numElements = value;
 		numPage = 0;
@@ -629,12 +661,17 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 			companyValue = jobOfferJSON.getJSONObject("company").getString("name");
 			logoValue = jobOfferJSON.getJSONObject("company").getString("profilePicture");
 		} catch (JSONException e) {
-			System.err.println("Error al parsear el objeto JSON: " + e.getMessage());
+			System.err.println(Constants.JSON_ERR + e.getMessage());
 			new CustomNotification(Constants.ERR_MSG, NotificationVariant.LUMO_ERROR);
 			getUI().ifPresent(ui -> ui.navigate(Constants.OFFERS_PATH));
 		}
 	}
 	
+	/**
+	 * Parses a list of job offers from a JSON object
+	 * 
+	 * @param resourcesBody - json object to parse
+	 */
 	private void parseJSONResourcesList(String resourcesBody){
 		try {
 			var jsonObject = new JSONObject(resourcesBody);
@@ -643,7 +680,8 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 			var isShowingLast = jsonObject.getBoolean("last");
 			var resourcesGrid = new CustomFilesGrid(contentArray, userRole);
 			var resourcesLayout = new VerticalLayout();
-			resourcesLayout.setWidth("50%");
+			resourcesLayout.setMaxWidth("1000px");
+			resourcesLayout.setWidthFull();
 			resourcesLayout.add(resourcesGrid);
 			setNavigationOptionsPageLayout(isShowingFirst, isShowingLast);
 			if(userRole.equals(Constants.ADM_ROLE) || userRole.equals(Constants.CMP_ROLE)) {
@@ -651,11 +689,18 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 			}
 			tabContentLayout.add(resourcesLayout, navigationOptionsPageLayout, customSelect);
 		} catch (JSONException e) {
-			new CustomNotification("No se han podido obtener los recursos solicitados", NotificationVariant.LUMO_ERROR);
+			System.err.println(Constants.JSON_ERR + e.getMessage());
 			return;
 		}
 	}
 	
+	/**
+	 * Builds a resource json object
+	 * 
+	 * @param name - resource's name
+	 * @param jobOffer - offer to which the resource belongs
+	 * @return String - json object
+	 */
 	private String getJSONResourceObject(String name, String jobOffer) {
 		try {
 			var resourceJSON = new JSONObject();
@@ -663,7 +708,6 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 			resourceJSON.put("jobOffer", new JSONObject(jobOffer));
 			return resourceJSON.toString();
 		} catch (JSONException e) {
-			System.err.println("Error al parsear el objeto JSON: " + e.getMessage());
 			new CustomNotification(Constants.ERR_MSG, NotificationVariant.LUMO_ERROR);
 			return null;
 		}
@@ -691,7 +735,7 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 	 */
 	private boolean sendCheckIfStudentAppliedToOffer() {
 		var username = VaadinSession.getCurrent().getAttribute("username");
-		var getUrl = Constants.REQ_REQ + "?studentId=" + username + "&offerCode=" + jobOfferId;
+		var getUrl = Constants.REQ_REQ + "?userId=" + username + "&offerCode=" + jobOfferId;
 		var httpRequest = new HttpRequest(getUrl);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
 		var httpResponse = httpRequest.executeHttpGet(authToken);
@@ -701,6 +745,14 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 		return false;
 	}
 	
+	/**
+	 * Sends an http request to
+	 * 
+	 * @param getUrl - url endpoint
+	 * @param numPage - page number to request
+	 * @param numElements - number of elements to request
+	 * @return String response body
+	 */
 	private String sendGetResourcesRequest(String getUrl, Integer numPage, Integer numElements) {
 		var httpRequest = new HttpRequest(getUrl);
 		getUrl = (numPage == null) ? getUrl : getUrl + "&page=" + numPage;
@@ -709,6 +761,12 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 		return httpRequest.executeHttpGet(authToken);
 	}
 	
+	/**
+	 * Sends an http request to create a resource
+	 * 
+	 * @param requestBody - json body to send into the request
+	 * @return boolean - true if it has been created, false if not
+	 */
 	private boolean sendCreateResourceRequest(String requestBody) {
 		var httpRequest = new HttpRequest(Constants.RES_REQ);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");

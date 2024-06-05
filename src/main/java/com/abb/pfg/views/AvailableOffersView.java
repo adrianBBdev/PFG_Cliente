@@ -1,5 +1,6 @@
 package com.abb.pfg.views;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import com.abb.pfg.custom.CustomAppLayout;
@@ -32,7 +33,7 @@ import com.vaadin.flow.server.VaadinSession;
 import lombok.NoArgsConstructor;
 
 /**
- * Default view when user access to the app. Shows a list of job offers
+ * View where all users can view the available offers
  *
  * @author Adrian Barco Barona
  * @version 1.0
@@ -50,18 +51,19 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 	private static final String DUR_MIN_TAG = "Duración mín. (en meses)";
 	private static final String DUR_MAX_TAG = "Duración máx. (en meses)";
 	private static final String FILTER_ERR = "Rellene los campos correctamente para poder filtrar las ofertas";
-	private static final String OFF_WRN = "No hay ofertas disponibles";
+	private static final String SHW_OFF_WRN = "No hay ofertas disponibles";
 	//Elementos
 	private VerticalLayout mainLayout, contentLayout, filterLayout;
 	private HorizontalLayout durationOptionsLayout;
 	private CustomNavigationOptionsPageLayout navigationOptionsPageLayout;
 	private CustomJobOffersGrid jobOffersGrid;
+	private CustomNumElementsSelect customNumElementsSelect;
 	private Button filterButton;
 	private Select<String> modalitySelect;
 	private CustomSelectAreas areaSelect;
 	private TextField cityField, searchField;
 	private NumberField minDurationField, maxDurationField;
-	private CustomNumElementsSelect customNumElementsSelect;
+	//Atributos
 	private String userRole, username;
 	private boolean isShowingAllOffers;
 	private int numPage = 0;
@@ -79,7 +81,7 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 	}
 
 	/**
-	 * Initialices the view components
+	 * Initializes the view components
 	 *
 	 */
 	private void init() {
@@ -88,12 +90,14 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 		mainLayout.setWidthFull();
 		setFilterLayout(userRole);
 		isShowingAllOffers = true;
+		contentLayout = new VerticalLayout();
+		var maxWidth = (userRole.equals(Constants.CMP_ROLE) || userRole.equals(Constants.ADM_ROLE)) ? "1500px" : "1000px";
+		contentLayout.setMaxWidth(maxWidth);
+		contentLayout.setWidthFull();
 		customNumElementsSelect = new CustomNumElementsSelect();
 		customNumElementsSelect.addValueChangeListener(event -> setContentLayout());
-		contentLayout = new VerticalLayout();
-		contentLayout.setWidth("70%");
 		setContentLayout();
-		mainLayout.add(filterLayout, contentLayout, navigationOptionsPageLayout, customNumElementsSelect);
+		mainLayout.add(filterLayout, contentLayout, customNumElementsSelect, navigationOptionsPageLayout);
 		var baseVerticalLayout = new VerticalLayout();
 		baseVerticalLayout.add(new H1(HEADER_TAG), mainLayout);
 		baseVerticalLayout.setAlignItems(Alignment.CENTER);
@@ -101,7 +105,7 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 	}
 
 	/**
-	 * Gets the layout which contains the job offers filter components
+	 * Sets up the layout used to filter offers
 	 * 
 	 * @param userRole - user's role
 	 */
@@ -185,7 +189,7 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 	}
 
 	/**
-	 * Gets the content layout where appears all job offers to show to each user
+	 * Sets up the content that the user will view
 	 *
 	 */
 	private void setContentLayout() {
@@ -197,24 +201,32 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 			setNavigationOptionsPageLayout(isShowingFirst, isShowingLast);
 			numPage = jobOffersJSON.getJSONObject("pageable").getInt("pageNumber");
 			var contentArray = jobOffersJSON.getJSONArray("content");
-			var numElements = contentArray.length();
-			if(userRole.equals(Constants.CMP_ROLE) || userRole.equals(Constants.ADM_ROLE)) {
-				if(jobOffersGrid == null) {
-					jobOffersGrid = new CustomJobOffersGrid(contentArray, userRole, false);
-					contentLayout.add(jobOffersGrid);
-				} else {
-					var jobOffersGrid = new CustomJobOffersGrid(contentArray, userRole, false);
-					contentLayout.replace(this.jobOffersGrid, jobOffersGrid);
-					this.jobOffersGrid = jobOffersGrid;
-				}
-			} else {
-				contentLayout.removeAll();
-				for(var i=0; i<numElements; i++) {
-					parseJobOfferJSON(contentArray.getJSONObject(i));
-				}
+			setOffersGrid(contentArray);
+			if(contentArray.length() == 0) {
+				new CustomNotification(SHW_OFF_WRN, NotificationVariant.LUMO_WARNING);
 			}
-			if(numElements == 0) {
-				new CustomNotification(OFF_WRN, NotificationVariant.LUMO_WARNING);
+		}
+	}
+	
+	/**
+	 * Sets up the grid of offers or the list of offers, depending on the user
+	 * 
+	 * @param contentArray - offers' array to display
+	 */
+	private void setOffersGrid(JSONArray contentArray) {
+		if(userRole.equals(Constants.CMP_ROLE) || userRole.equals(Constants.ADM_ROLE)) {
+			if(jobOffersGrid == null) {
+				jobOffersGrid = new CustomJobOffersGrid(contentArray, userRole, false);
+				contentLayout.add(jobOffersGrid);
+			} else {
+				var jobOffersGrid = new CustomJobOffersGrid(contentArray, userRole, false);
+				contentLayout.replace(this.jobOffersGrid, jobOffersGrid);
+				this.jobOffersGrid = jobOffersGrid;
+			}
+		} else {
+			contentLayout.removeAll();
+			for(var i=0; i<contentArray.length(); i++) {
+				parseJobOfferJSON(contentArray.getJSONObject(i));
 			}
 		}
 	}
@@ -234,23 +246,6 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 		}
 		navigationOptionsPageLayout.setEnabledNextButton(isShowingLast);
 		navigationOptionsPageLayout.setEnabledPrevButton(isShowingFirst);
-	}
-
-	/**
-	 * Listener assigned to the next page button
-	 *
-	 */
-	private void nextPageListener() {
-		numPage++;
-		filterListener(false);
-	}
-
-	/**
-	 * Listener assigned to the previous page button
-	 */
-	private void prevPageListener() {
-		numPage--;
-		filterListener(false);
 	}
 
 	/**
@@ -281,6 +276,25 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 		return finalUrl;
 	}
 	
+	//LISTENERS 
+	
+	/**
+	 * Listener assigned to the next page button
+	 *
+	 */
+	private void nextPageListener() {
+		numPage++;
+		filterListener(false);
+	}
+
+	/**
+	 * Listener assigned to the previous page button
+	 */
+	private void prevPageListener() {
+		numPage--;
+		filterListener(false);
+	}
+	
 	//PARSEOS JSON
 
 	/**
@@ -301,7 +315,7 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 	//HTTP REQUESTS
 	
 	/**
-	 * Sends the request to obtain the job offers
+	 * Sends the request to get the job offers
 	 *
 	 * @return String - response body
 	 */
@@ -330,6 +344,13 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 		return httpRequest.executeHttpGet(authToken);
 	}
 	
+	/**
+	 * Sends an http request to determine if an offer is saved by the user or not
+	 * 
+	 * @param username - user's username
+	 * @param offerCode - offer code to determine
+	 * @return boolean - true if it is saved, false if not
+	 */
 	private boolean isJobOfferSaved(String username, Long offerCode) {
 		var httpRequest = new HttpRequest(Constants.FAV_REQ + "/favorite?username=" + username + "&offerCode=" + offerCode);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");

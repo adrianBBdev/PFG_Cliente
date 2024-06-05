@@ -55,7 +55,7 @@ public class CustomSignUpCompanyLayout extends VerticalLayout {
 	private void setNameField() {
 		nameField = new TextField(Constants.NAME_TAG);			//Creamos el campo del nombre
 		nameField.setMaxLength(Constants.FIELDS_MAX_LENGTH);
-		nameField.setWidth(Constants.STRD_SIZE);
+		nameField.setWidth("30%");
 	}
 	
 	/**
@@ -72,7 +72,7 @@ public class CustomSignUpCompanyLayout extends VerticalLayout {
 			var isInvalid = (cif.matches(Constants.CIF_REGEX)) ? false : true;
 			cifField.setInvalid(isInvalid);
 		});
-		cifField.setWidth(Constants.STRD_SIZE);
+		cifField.setWidth("30%");
 	}
 	
 	private void setComboBox() {
@@ -80,7 +80,7 @@ public class CustomSignUpCompanyLayout extends VerticalLayout {
 		countryComboBox.setItems(Arrays.stream(Countries.values())
                 .map(Countries::getCountryName)
                 .collect(Collectors.toList()));
-		countryComboBox.setWidth(Constants.STRD_SIZE);
+		countryComboBox.setWidth("30%");
 	}
 	
 	/**
@@ -104,7 +104,7 @@ public class CustomSignUpCompanyLayout extends VerticalLayout {
 	
 	private void setDescriptionField() {
 		descriptionField = new CustomTextArea(Constants.DESC_TAG, "");	//Creamos el campo de la descripcion personal
-		descriptionField.setWidth(Constants.STRD_SIZE);
+		descriptionField.setWidth("30%");
 	}
 	
 	/**

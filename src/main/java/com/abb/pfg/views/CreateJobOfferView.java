@@ -1,6 +1,3 @@
-/**
- * 
- */
 package com.abb.pfg.views;
 
 import org.json.JSONException;
@@ -62,9 +59,13 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 	@Override
 	public void beforeEnter(BeforeEnterEvent event) {
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		var userType = (String) VaadinSession.getCurrent().getAttribute("role");
-		if(authToken == null || !userType.equals(Constants.CMP_ROLE)) {
+		var userRole = (String) VaadinSession.getCurrent().getAttribute("role");
+		if(authToken == null) {
 			event.forwardTo(LoginView.class);
+			return;
+		}
+		if(!userRole.equals(Constants.CMP_ROLE)) {
+			event.forwardTo(AvailableOffersView.class);
 			return;
 		}
 		username = (String) VaadinSession.getCurrent().getAttribute("username");
@@ -72,7 +73,7 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 	}
 	
 	/**
-	 * Initialices the view components
+	 * Initializes the view components
 	 *
 	 */
 	private void init() {
@@ -93,7 +94,7 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 	 * 
 	 */
 	private void getJobOfferDetailsLayout() {
-		getJobOfferComponents();
+		setJobOfferComponents();
 		var horizontalLayout1 = new HorizontalLayout();
 		horizontalLayout1.add(areaSelect, modalitySelect);
 		horizontalLayout1.setWidthFull();
@@ -110,7 +111,11 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 				horizontalLayout2, horizontalLayout3, horizontalLayout4, descriptionField);
 	}
 	
-	private void getJobOfferComponents() {
+	/**
+	 * Sets up the job offer components which displays all fields of the job offer
+	 * 
+	 */
+	private void setJobOfferComponents() {
 		titleField = new TextField(Constants.TITLE_TAG);
 		titleField.setWidthFull();
 		titleField.setMaxLength(50);
@@ -127,7 +132,8 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 		getNumberFields();
 		jobOfferDetailsLayout = new VerticalLayout();
 		jobOfferDetailsLayout.setAlignItems(Alignment.CENTER);
-		jobOfferDetailsLayout.setWidth("70%");
+		jobOfferDetailsLayout.setMaxWidth("1500px");
+		jobOfferDetailsLayout.setWidthFull();
 	}
 	
 	/**
@@ -184,28 +190,13 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 	 */
 	private void getButtonsLayout() {
 		buttonsLayout = new HorizontalLayout();
-		var createButton = new Button("Crear oferta");
+		var createButton = new Button(HEADER_TAG);
 		createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 		createButton.addClickListener(event -> createButtonListener());
 		var cancelButton = new Button(Constants.CANCEL_TAG);
 		cancelButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-		cancelButton.addClickListener(event -> {
-			this.getUI().ifPresent(ui -> ui.navigate(Constants.OFFERS_PATH));
-		});
+		cancelButton.addClickListener(event -> getUI().ifPresent(ui -> ui.navigate(Constants.OFFERS_PATH)));
 		buttonsLayout.add(createButton, cancelButton);
-	}
-	
-	private void createButtonListener() {
-		if(arefieldsOK()) {
-			if(sendCreateJobOfferRequest(username)) {
-				new CustomNotification(Constants.POST_OFF_MSG, NotificationVariant.LUMO_SUCCESS);
-				this.getUI().ifPresent(ui -> ui.navigate(Constants.OFFERS_PATH));
-				return;
-			}
-			new CustomNotification(Constants.POST_OFF_ERR, NotificationVariant.LUMO_WARNING);
-			return;
-		}
-		new CustomNotification(Constants.ERROR_TEXT, NotificationVariant.LUMO_WARNING);
 	}
 	
 	/**
@@ -224,17 +215,23 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 		return true;
 	}
 	
+	//LISTENERS
+	
 	/**
-	 * Sends a http post request to create a new job offer
+	 * Listener assigned to the create job offer option button
 	 * 
-	 * @param username - company's username
-	 * @return boolean - true if it has been created, false if not
 	 */
-	private boolean sendCreateJobOfferRequest(String username) {
-		var httpRequest = new HttpRequest(Constants.OFF_REQ);
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		var requestBody = parseJSONOffer(username);
-		return httpRequest.executeHttpPost(authToken, requestBody);
+	private void createButtonListener() {
+		if(arefieldsOK()) {
+			if(sendCreateJobOfferRequest(username)) {
+				new CustomNotification(Constants.POST_OFF_MSG, NotificationVariant.LUMO_SUCCESS);
+				this.getUI().ifPresent(ui -> ui.navigate(Constants.OFFERS_PATH));
+				return;
+			}
+			new CustomNotification(Constants.POST_OFF_ERR, NotificationVariant.LUMO_WARNING);
+			return;
+		}
+		new CustomNotification(Constants.ERROR_TEXT, NotificationVariant.LUMO_WARNING);
 	}
 	
 	/**
@@ -255,10 +252,8 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 			jsonObject.put("salary", salaryField.getValue());
 			jsonObject.put("address", addressField.getValue());
 			jsonObject.put("city", cityField.getValue());
-			var areaValue = sendGetAreaRequest(areaSelect.getValue());
-			jsonObject.put("area", new JSONObject(areaValue));
-			var companyValue = sendGetCompanyRequest(username);
-			jsonObject.put("company", new JSONObject(companyValue));
+			jsonObject.put("areaName", areaSelect.getValue());
+			jsonObject.put("company", username);
 			return jsonObject.toString();
 		} catch (JSONException e) {
 			System.err.println("Error al parsear el objeto JSON: " + e.getMessage());
@@ -266,27 +261,18 @@ public class CreateJobOfferView extends CustomAppLayout implements BeforeEnterOb
 		}
 	}
 	
-	/**
-	 * Gets the area JSON object
-	 * 
-	 * @param areaValue - area's name
-	 * @return String - response body
-	 */
-	private String sendGetAreaRequest(String areaValue) {
-		var httpRequest = new HttpRequest(Constants.AREAS_REQ + "/area?name=" + areaValue);
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		return httpRequest.executeHttpGet(authToken);
-	}
+	//HTTP REQUESTS
 	
 	/**
-	 * Gets the company JSON object
+	 * Sends a http post request to create a new job offer
 	 * 
 	 * @param username - company's username
-	 * @return String - response body
+	 * @return boolean - true if it has been created, false if not
 	 */
-	private String sendGetCompanyRequest(String username) {
-		var httpRequest = new HttpRequest(Constants.CMP_REQ + "/company?username=" + username);
+	private boolean sendCreateJobOfferRequest(String username) {
+		var httpRequest = new HttpRequest(Constants.OFF_REQ);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		return httpRequest.executeHttpGet(authToken);
+		var requestBody = parseJSONOffer(username);
+		return httpRequest.executeHttpPost(authToken, requestBody);
 	}
 }

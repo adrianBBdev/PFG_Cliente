@@ -46,11 +46,19 @@ import com.vaadin.flow.server.VaadinSession;
 public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long>, BeforeEnterObserver{
 
 	private static final long serialVersionUID = -3209432078545293474L;
+	//Etiquetas
 	private static String HEADER_TAG = "Chat";
+	private static final String SND_MSG_ERR = "No se ha podido enviar el mensaje";
+	private static final String SND_TAG = "Enviar";
+	private static final String WRT_MSG_TAG = "Escribe un mensaje";
+	private static final String LNG_MSG_WRN = "No se pueden enviar mensajes de más de 250 caracteres";
+	private static final String PRV_MSG_TAG = "Mensajes anteriores";
+	//Componentes
 	private VerticalLayout mainLayout;
 	private MessageList messageList;
 	private MessageInput messageInput;
 	private Button prevMessagesButton;
+	//Atributos
 	private String username, userRole, chatBody;
 	private Long chatId;
 	private Integer numPage = 0;
@@ -59,8 +67,12 @@ public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long
 	@Override
 	public void setParameter(BeforeEvent event, Long parameter) {
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
+		if(authToken == null){
+			event.forwardTo(LoginView.class);
+			return;	
+		}
 		userRole = (String) VaadinSession.getCurrent().getAttribute("role");
-		if(authToken == null || userRole.equals(Constants.GST_ROLE)){
+		if(userRole.equals(Constants.GST_ROLE)) {
 			event.forwardTo(LoginView.class);
 			return;
 		}
@@ -86,19 +98,6 @@ public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long
 	}
 	
 	/**
-	 * Sends the http request to obtain the chat details
-	 * 
-	 * @param chatId - chat code to identify the chat
-	 * @return String - chat JSON body
-	 */
-	private String sendChatDetailsRequest(Long chatId) {
-		var getUrl = Constants.CHATS_REQ + "/chat?chatCode=" + chatId;
-		var httpRequest = new HttpRequest(getUrl);
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		return httpRequest.executeHttpGet(authToken);
-	}
-	
-	/**
 	 * Initializes the view components
 	 *
 	 */
@@ -121,8 +120,9 @@ public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long
 		setMessagesList();
 		if(!userRole.equals(Constants.ADM_ROLE)) {
 			messageInput = new MessageInput();
-			messageInput.setI18n(new MessageInputI18n().setMessage("Escribe un mensaje").setSend("Enviar"));
-			messageInput.setWidth("70%");
+			messageInput.setI18n(new MessageInputI18n().setMessage(WRT_MSG_TAG).setSend(SND_TAG));
+			messageInput.setMaxWidth("1500px");
+			messageInput.setWidthFull();
 			messageInput.addSubmitListener(event -> addNewMessageListener(event));
 			mainLayout.add(messageList, messageInput);
 		} else {
@@ -136,7 +136,8 @@ public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long
 	 */
 	private void setMessagesList() {
 		messageList = new MessageList();
-		messageList.setWidth("70%");
+		messageList.setMaxWidth("1250px");
+		messageList.setWidthFull();
 		var messagesJSONArray = sendGetChatMessagesRequest(chatId, numPage);
 		var jsonObject = new JSONObject(messagesJSONArray);
 		var isShowingLast = jsonObject.getBoolean("last");
@@ -173,34 +174,6 @@ public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long
 	}
 	
 	/**
-	 * Listener assigned to the send message button
-	 * 
-	 * @param event - event that occurrs when the user click the send button
-	 */
-	private void addNewMessageListener(SubmitEvent event) {
-		if(event.getValue().length() > 250) {
-			new CustomNotification("No se pueden enviar mensajes de más de 250 caracteres", NotificationVariant.LUMO_WARNING);
-			return;
-		}
-		var jsonObject = new JSONObject(chatBody);
-		var userName = (userRole.equals(Constants.STD_ROLE)) ? jsonObject.getJSONObject("student").getString("name") 
-				: jsonObject.getJSONObject("company").getString("name");
-		var requestBody = setMessageJSONBody(event.getValue(), userRole, messageList.getItems().size(), chatBody);
-		if(sendCreateMessageRequest(requestBody)) {
-			var jsonChatObject = new JSONObject(chatBody);
-			var profilePicture = (userRole.equals(Constants.STD_ROLE) 
-					? jsonChatObject.getJSONObject("student").getString("profilePicture")
-					: jsonChatObject.getJSONObject("company").getString("profilePicture"));
-			var customAvatar = getCustomAvatar(userName, profilePicture);
-			LinkedHashSet<MessageListItem> items = new LinkedHashSet<>(messageList.getItems());
-			items.add(createMessageItem(event.getValue(), Instant.now(), userName, customAvatar));
-			messageList.setItems(items);
-			return;
-		}
-		new CustomNotification("No se ha podido enviar el mensaje", NotificationVariant.LUMO_ERROR);
-	}
-	
-	/**
 	 * Creates a new message list item
 	 * 
 	 * @param value - message content
@@ -221,58 +194,11 @@ public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long
 	 * @param isShowingLast
 	 */
 	private void setPreviousMessagesButton(boolean isShowingLast) {
-		prevMessagesButton = new Button("Mensajes anteriores", new Icon(VaadinIcon.ANGLE_DOUBLE_UP));
+		prevMessagesButton = new Button(PRV_MSG_TAG, new Icon(VaadinIcon.ANGLE_DOUBLE_UP));
 		prevMessagesButton.addClickListener(event -> previousMessagesButtonListener());
 		if(isShowingLast) {
 			prevMessagesButton.setEnabled(!isShowingLast);
 		}
-	}
-	
-	/**
-	 * Listener assigned to the previous messages button, to display the previous messages
-	 * 
-	 */
-	private void previousMessagesButtonListener() {
-		numPage++;
-		var messagesJSONArray = sendGetChatMessagesRequest(chatId, numPage);
-		var jsonObject = new JSONObject(messagesJSONArray);
-		var isShowingLast = jsonObject.getBoolean("last");
-		if(isShowingLast) {
-			prevMessagesButton.setEnabled(!isShowingLast);
-		}
-		var content = jsonObject.getJSONArray("content");
-		var previousItems = new LinkedHashSet<MessageListItem>();
-		setMessagesListContent(content, previousItems);
-		previousItems.addAll(items);
-		items = previousItems;
-		messageList.setItems(items);
-	}
-	
-	/**
-	 * Verifies if the user that want to access to this route is allowed to access or not
-	 * 
-	 * @param username - user's username
-	 * @param userRole - user's role
-	 * @param chatBody - chat to display
-	 * @return boolean - true if the user has permission, false if not
-	 */
-	private boolean verifyAccessPermission(String username, String userRole, String chatBody) {
-		var usernameToVerify = new String();
-		try {
-			var jsonObject = new JSONObject(chatBody);
-			if(userRole.equals(Constants.STD_ROLE)) {
-				usernameToVerify = jsonObject.getJSONObject("student").getJSONObject("user").getString("username");
-			} else {
-				usernameToVerify = jsonObject.getJSONObject("company").getJSONObject("user").getString("username");
-			}
-		} catch (JSONException e) {
-			System.err.println("Error al parsear el objeto JSON: " + e.getMessage());
-			return false;
-		}
-		if(username.equals(usernameToVerify)) {
-			return true;
-		}
-		return false;
 	}
 	
 	/**
@@ -300,9 +226,95 @@ public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long
 		return Instant.from(formatter.parse(timeStamp));
 	}
 	
+	//LISTENERS
+	
+	/**
+	 * Listener assigned to the send message button
+	 * 
+	 * @param event - event that occurrs when the user click the send button
+	 */
+	private void addNewMessageListener(SubmitEvent event) {
+		if(event.getValue().length() > 250) {
+			new CustomNotification(LNG_MSG_WRN, NotificationVariant.LUMO_WARNING);
+			return;
+		}
+		var jsonObject = new JSONObject(chatBody);
+		var userName = (userRole.equals(Constants.STD_ROLE)) ? jsonObject.getJSONObject("student").getString("name") 
+				: jsonObject.getJSONObject("company").getString("name");
+		var requestBody = setMessageJSONBody(event.getValue(), userRole, messageList.getItems().size(), chatBody);
+		if(sendCreateMessageRequest(requestBody)) {
+			var jsonChatObject = new JSONObject(chatBody);
+			var profilePicture = (userRole.equals(Constants.STD_ROLE) 
+					? jsonChatObject.getJSONObject("student").getString("profilePicture")
+					: jsonChatObject.getJSONObject("company").getString("profilePicture"));
+			var customAvatar = getCustomAvatar(userName, profilePicture);
+			LinkedHashSet<MessageListItem> items = new LinkedHashSet<>(messageList.getItems());
+			items.add(createMessageItem(event.getValue(), Instant.now(), userName, customAvatar));
+			messageList.setItems(items);
+			return;
+		}
+		new CustomNotification(SND_MSG_ERR, NotificationVariant.LUMO_ERROR);
+	}
+	
+	/**
+	 * Listener assigned to the previous messages button, to display the previous messages
+	 * 
+	 */
+	private void previousMessagesButtonListener() {
+		numPage++;
+		var messagesJSONArray = sendGetChatMessagesRequest(chatId, numPage);
+		var jsonObject = new JSONObject(messagesJSONArray);
+		var isShowingLast = jsonObject.getBoolean("last");
+		if(isShowingLast) {
+			prevMessagesButton.setEnabled(!isShowingLast);
+		}
+		var content = jsonObject.getJSONArray("content");
+		var previousItems = new LinkedHashSet<MessageListItem>();
+		setMessagesListContent(content, previousItems);
+		previousItems.addAll(items);
+		items = previousItems;
+		messageList.setItems(items);
+	}
+	
 	//PARSEOS JSON
 	
-	private String setMessageJSONBody(String content, String senderType, int order,String chatBody) {
+	/**
+	 * Verifies if the user that want to access to this route is allowed to access or not
+	 * 
+	 * @param username - user's username
+	 * @param userRole - user's role
+	 * @param chatBody - chat to display
+	 * @return boolean - true if the user has permission, false if not
+	 */
+	private boolean verifyAccessPermission(String username, String userRole, String chatBody) {
+		var usernameToVerify = new String();
+		try {
+			var jsonObject = new JSONObject(chatBody);
+			if(userRole.equals(Constants.STD_ROLE)) {
+				usernameToVerify = jsonObject.getJSONObject("student").getJSONObject("user").getString("username");
+			} else {
+				usernameToVerify = jsonObject.getJSONObject("company").getJSONObject("user").getString("username");
+			}
+		} catch (JSONException e) {
+			System.err.println(Constants.JSON_ERR + e.getMessage());
+			return false;
+		}
+		if(username.equals(usernameToVerify)) {
+			return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Sets up a message JSON object
+	 * 
+	 * @param content - message content
+	 * @param senderType - role of the user who sends the message
+	 * @param order - number that establishes the order of the message in the chat 
+	 * @param chatBody - chat information to which the message belongs
+	 * @return
+	 */
+	private String setMessageJSONBody(String content, String senderType, int order, String chatBody) {
 		try {
 			var messageJSONObject = new JSONObject();
 			messageJSONObject.put("content", content);
@@ -311,12 +323,25 @@ public class ChatBoxView extends CustomAppLayout implements HasUrlParameter<Long
 			messageJSONObject.put("chat", new JSONObject(chatBody));
 			return messageJSONObject.toString();
 		} catch (JSONException e) {
-			System.err.println("Error al parsear el objeto JSON: " + e.getMessage());
+			System.err.println(Constants.JSON_ERR + e.getMessage());
 			return null;
 		}
 	}
 	
 	//HTTP REQUESTS
+	
+	/**
+	 * Sends the http request to obtain the chat details
+	 * 
+	 * @param chatId - chat code to identify the chat
+	 * @return String - chat JSON body
+	 */
+	private String sendChatDetailsRequest(Long chatId) {
+		var getUrl = Constants.CHATS_REQ + "/chat?chatCode=" + chatId;
+		var httpRequest = new HttpRequest(getUrl);
+		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
+		return httpRequest.executeHttpGet(authToken);
+	}
 	
 	/**
 	 * Sends the http request to get the messages of the chat

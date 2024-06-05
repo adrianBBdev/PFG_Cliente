@@ -51,6 +51,9 @@ public class RequestsView extends CustomAppLayout implements BeforeEnterObserver
 	private static final String PEN_TAG = "Pendiente";
 	private static final String PRO_TAG = "Procesada";
 	private static final String REJ_TAG = "Rechazada";
+	private static final String MNG_REQ_TAG = "Gestionar solicitudes";
+	private static final String GET_REQ_WRN = "No hay solicitudes disponibles";
+	private static final String OPT_ALL_TAG = "Todas seleccionado";
 	//Componentes
 	private VerticalLayout mainLayout, contentLayout, filterLayout;
 	private CustomNavigationOptionsPageLayout navigationOptionsPageLayout;
@@ -91,14 +94,15 @@ public class RequestsView extends CustomAppLayout implements BeforeEnterObserver
 		mainLayout.setWidthFull();
 		getFilterLayout();
 		contentLayout = new VerticalLayout();
-		contentLayout.setWidth("70%");
+		contentLayout.setMaxWidth("1500px");
+		contentLayout.setWidthFull();
 		numPage = 0;
 		customSelect = new CustomNumElementsSelect();
 		customSelect.addValueChangeListener(event -> getGridContent());
 		getGridContent();
-		mainLayout.add(filterLayout, contentLayout, navigationOptionsPageLayout, customSelect);
+		mainLayout.add(filterLayout, contentLayout, customSelect, navigationOptionsPageLayout);
 		var baseVerticalLayout = new VerticalLayout();
-		var headerTag = (userRole.equals(Constants.ADM_ROLE)) ? "Gestionar solicitudes" : HEADER_TAG;
+		var headerTag = (userRole.equals(Constants.ADM_ROLE)) ? MNG_REQ_TAG : HEADER_TAG;
 		baseVerticalLayout.add(new H1(headerTag), mainLayout);
 		baseVerticalLayout.setAlignItems(Alignment.CENTER);
 		this.setContent(baseVerticalLayout);
@@ -121,38 +125,16 @@ public class RequestsView extends CustomAppLayout implements BeforeEnterObserver
 		var numElements = contentArray.length();
 		setNavigationOptionsPageLayout(jsonObject.getBoolean("first"), jsonObject.getBoolean("last"));
 		if(requestsGrid == null) {
-			requestsGrid = new CustomRequestsGrid(numElements, contentArray, userRole);
+			requestsGrid = new CustomRequestsGrid(contentArray, userRole);
 			contentLayout.add(requestsGrid);
 		} else {
-			var requestsGrid = new CustomRequestsGrid(numElements, contentArray, userRole);
+			var requestsGrid = new CustomRequestsGrid(contentArray, userRole);
 			contentLayout.replace(this.requestsGrid, requestsGrid);
 			this.requestsGrid = requestsGrid;
 		}
 		if(numElements == 0) {
-			new CustomNotification("No hay solicitudes disponibles", NotificationVariant.LUMO_WARNING);
+			new CustomNotification(GET_REQ_WRN, NotificationVariant.LUMO_WARNING);
 		}
-	}
-
-	/**
-	 * Sends the request to obtain the users requests already sent
-	 * 
-	 * @param role - user's role
-	 * @param requestStatus - current request status of the requested requests
-	 * @return String - response body of the http request
-	 */
-	private String sendGetUsersRequest(String role) {
-		var getUrl = Constants.REQ_REQ + "?page=" + numPage;
-		if(userRole.equals(Constants.ADM_ROLE)) {
-			getUrl = (searchField.getValue().isEmpty()) ? getUrl 
-					: getUrl + "&name=" + searchField.getValue();
-		} else {
-			getUrl += getUrlParamsRequests(role, radioButtonGroup.getValue());
-		}
-		var numElements = customSelect.getValue();
-		getUrl = (numElements == null) ? getUrl : getUrl + "&size=" + numElements;
-		var httpRequest = new HttpRequest(getUrl);
-		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
-		return httpRequest.executeHttpGet(authToken);
 	}
 	
 	/**
@@ -167,8 +149,7 @@ public class RequestsView extends CustomAppLayout implements BeforeEnterObserver
 		if(jobOfferId != null) {
 			urlParams = "&offerCode=" + jobOfferId;
 		} else {
-			var urlParam = (role.equals(Constants.STD_ROLE)) ? "&studentId=" : "&companyId=";
-			urlParams = urlParam + username;
+			urlParams = "&userId=" + username;
 		}
 		if(!requestStatus.equals(ALL_TAG)) {
 			var status = new String();
@@ -190,6 +171,30 @@ public class RequestsView extends CustomAppLayout implements BeforeEnterObserver
 		}
 		return urlParams;
 	}
+	
+	/**
+	 * Gets the layout used to filter user requests
+	 *
+	 */
+	private void getFilterLayout() {
+		filterLayout = new VerticalLayout();
+		filterLayout.setAlignItems(Alignment.CENTER);
+		if(!userRole.equals(Constants.ADM_ROLE)) {
+			radioButtonGroup = new RadioButtonGroup<>();
+			radioButtonGroup.setLabel(REQ_ST_TAG);
+			radioButtonGroup.setItems(ALL_TAG, ACC_TAG, PEN_TAG, PRO_TAG, REJ_TAG);
+			radioButtonGroup.setValue(ALL_TAG);
+			radioButtonGroup.addValueChangeListener(event -> getGridContent());
+			filterLayout.add(radioButtonGroup);
+		}
+		searchField = new TextField();
+		searchField.setMaxWidth("500px");
+		searchField.setWidthFull();
+		searchField.setPlaceholder(Constants.SEARCH_TAG);
+		searchField.setPrefixComponent(new Icon(VaadinIcon.SEARCH));
+		searchField.addValueChangeListener(event -> getGridContent());
+		filterLayout.add(searchField);
+	}
 
 	/**
 	 * Gets the custom layout used to navigate between pages
@@ -207,6 +212,8 @@ public class RequestsView extends CustomAppLayout implements BeforeEnterObserver
 		navigationOptionsPageLayout.setEnabledNextButton(isShowingLast);
 		navigationOptionsPageLayout.setEnabledPrevButton(isShowingFirst);
 	}
+	
+	//LISTENERS
 
 	/**
 	 * Listener assigned to the next page button
@@ -226,39 +233,38 @@ public class RequestsView extends CustomAppLayout implements BeforeEnterObserver
 	}
 
 	/**
-	 * Gets the layout used to filter user requests
-	 *
-	 */
-	private void getFilterLayout() {
-		filterLayout = new VerticalLayout();
-		filterLayout.setAlignItems(Alignment.CENTER);
-		if(userRole.equals(Constants.ADM_ROLE)) {
-			searchField = new TextField();
-			searchField.setWidth("30%");
-			searchField.setPlaceholder(Constants.SEARCH_TAG);
-			searchField.setPrefixComponent(new Icon(VaadinIcon.SEARCH));
-			searchField.addValueChangeListener(event -> getGridContent());
-			filterLayout.add(searchField);
-			return;
-		}
-		radioButtonGroup = new RadioButtonGroup<>();
-		radioButtonGroup.setLabel(REQ_ST_TAG);
-		radioButtonGroup.setItems(ALL_TAG, ACC_TAG, PEN_TAG, PRO_TAG, REJ_TAG);
-		radioButtonGroup.setValue(ALL_TAG);
-		radioButtonGroup.addValueChangeListener(event -> getGridContent());
-		filterLayout.add(radioButtonGroup);
-	}
-
-	/**
 	 * Listener assigned to the radio button group to filter requests
 	 *
 	 * @param requestStateValue - request state value to filter
 	 */
 	private void filterListener(String requestStateValue) {
 		if(requestStateValue.equals(ALL_TAG)) {
-			new CustomNotification("Todas seleccionado", NotificationVariant.LUMO_PRIMARY);
+			new CustomNotification(OPT_ALL_TAG, NotificationVariant.LUMO_PRIMARY);
 			return;
 		}
 		new CustomNotification(requestStateValue + " seleccionado", NotificationVariant.LUMO_PRIMARY);
+	}
+	
+	//HTTP REQUESTS
+	
+	/**
+	 * Sends the request to obtain the users requests already sent
+	 * 
+	 * @param role - user's role
+	 * @param requestStatus - current request status of the requested requests
+	 * @return String - response body of the http request
+	 */
+	private String sendGetUsersRequest(String role) {
+		var getUrl = Constants.REQ_REQ + "?page=" + numPage;
+		if(!userRole.equals(Constants.ADM_ROLE)) {
+			getUrl += getUrlParamsRequests(role, radioButtonGroup.getValue());
+		}
+		getUrl = (searchField.getValue().isEmpty()) ? getUrl 
+				: getUrl + "&name=" + searchField.getValue();
+		var numElements = customSelect.getValue();
+		getUrl = (numElements == null) ? getUrl : getUrl + "&size=" + numElements;
+		var httpRequest = new HttpRequest(getUrl);
+		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
+		return httpRequest.executeHttpGet(authToken);
 	}
 }

@@ -76,6 +76,12 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 	private static final String AUTH_ERR = "Las credenciales no son correctas. No se pueden actualizar los datos";
 	private static final String NEW_PASSWD_ERR = "Las nuevas credenciales no son válidas. Revise los datos e inténtelo de nuevo";
 	private static final String PROFILE_TAG = "Carga una nueva foto de perfil";
+	private static final String GET_RES_ERR = "No se han podido obtener los recursos solicitados";
+	private static final String ADD_RES_TAG = "Añadir archivo";
+	private static final String SEL_RES_ERR = "No ha seleccionado ningún recurso";
+	private static final String ADD_RES_MSG = "El recurso ha sido añadido correctamente";
+	private static final String SHW_RES_ERR = "Error al cargar el archivo";
+	private static final String ADD_RES_ERR = "El recurso no ha podido ser añadido";
 	//Elementos
 	private VerticalLayout mainLayout, userDetailsLayout, profileDetailsLayout, mediaLayout;
 	private HorizontalLayout userDetailsButtonsLayout, profileDetailsButtonsLayout;
@@ -123,7 +129,6 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 			event.forwardTo(AvailableOffersView.class);
 			return;
 		}
-		
 		init();		//Inicializamos la vista y añadimos el layout principal
 	}
 
@@ -148,7 +153,8 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 	 */
 	private void setAccordionLayout() {
 		accordionLayout = new Accordion();
-		accordionLayout.setWidth("70%");
+		accordionLayout.setMaxWidth("1200px");
+		accordionLayout.setWidthFull();
 		setUserDetailsLayoutContent();
 		accordionLayout.add(Constants.USER_INFO_TAG, userDetailsLayout);
 		profileDetailsLayout = new VerticalLayout();
@@ -165,6 +171,12 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		}
 	}
 	
+	/**
+	 * Sets up the profile details fiels
+	 * 
+	 * @param userId - user id to display
+	 * @param userCategory - user's role
+	 */
 	private void setProfileAndMediaContent(String userId, String userCategory) {
 		emailField.setValue(userId);
 		if(userCategory.equals(Constants.STD_ROLE)) {
@@ -273,6 +285,19 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 			new CustomNotification(PRF_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
+		setStudentContentFields();
+		parseStudentJSON(responseBody);
+		setProfileDetailsButtons();
+		setProfilePictureField();
+		profileDetailsLayout.add(userAvatar, nameField, idField, phoneField,
+				studiesField, descField, profileDetailsButtonsLayout);
+	}
+	
+	/**
+	 * Sets up the fields that shows the student profile details
+	 * 
+	 */
+	private void setStudentContentFields() {
 		nameField = new TextField(Constants.NAME_TAG);
 		nameField.setReadOnly(!nameField.isReadOnly());
 		nameField.setWidth("50%");
@@ -295,11 +320,6 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		descField = new CustomTextArea(Constants.DESC_TAG, "");
 		descField.setReadOnly(!descField.isReadOnly());
 		descField.setWidth("70%");
-		parseStudentJSON(responseBody);
-		setProfileDetailsButtons();
-		setProfilePictureField();
-		profileDetailsLayout.add(userAvatar, nameField, idField, phoneField,
-				studiesField, descField, profileDetailsButtonsLayout);
 	}
 
 	/**
@@ -312,6 +332,19 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 			new CustomNotification(PRF_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
+		setCompanyContentFields();
+		parseCompanyJSON(responseBody);
+		setProfileDetailsButtons();
+		setProfilePictureField();
+		profileDetailsLayout.add(userAvatar, nameField, idField, countryComboBox,
+				descField, profileDetailsButtonsLayout);
+	}
+	
+	/**
+	 * Sets up the fields that shows the company profile details
+	 * 
+	 */
+	private void setCompanyContentFields() {
 		nameField = new TextField(Constants.NAME_TAG);
 		nameField.setReadOnly(!nameField.isReadOnly());
 		nameField.setWidth("50%");
@@ -327,16 +360,18 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		descField = new CustomTextArea(Constants.DESC_TAG, "");
 		descField.setReadOnly(!descField.isReadOnly());
 		descField.setWidth("70%");
-		parseCompanyJSON(responseBody);
-		setProfileDetailsButtons();
-		setProfilePictureField();
-		profileDetailsLayout.add(userAvatar, nameField, idField, countryComboBox,
-				descField, profileDetailsButtonsLayout);
 	}
 	
+	/**
+	 * Sets up the list of media resources assigned to the user
+	 * 
+	 * @param userId - user's id
+	 */
 	private void setMediaContent(String userId) {
 		mediaLayout = new VerticalLayout();
 		mediaLayout.setAlignItems(Alignment.CENTER);
+		mediaLayout.setMaxWidth("1500px");
+		mediaLayout.setWidthFull();
 		newMediaButton = new Button(Constants.ADD_FILE_TAG, new Icon(VaadinIcon.PLUS_CIRCLE_O));
 		newMediaButton.addClickListener(event -> addNewFileButtonListener());
 		mediaLayout.add(newMediaButton);
@@ -345,10 +380,15 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		setGridContent(userId);
 	}
 	
+	/**
+	 * Sets up the media resources grid
+	 * 
+	 * @param userId
+	 */
 	private void setGridContent(String userId) {
 		var mediaBody = sendGetListRequest(Constants.MEDIA_REQ + "?username=" + userId, numPage, customSelect.getValue());
 		if(mediaBody == null) {
-			new CustomNotification("No se han podido obtener los recursos solicitados", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(GET_RES_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
 		this.parseJSONMediaList(mediaBody);
@@ -470,6 +510,10 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		}
 	}
 	
+	/**
+	 * Updates the session parameters when it is called
+	 * 
+	 */
 	private void updateSessionParameters() {
 		if(userId != null && userCategory != null) {
 			userId = emailField.getValue();
@@ -478,8 +522,10 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		}
 		username = emailField.getValue();
 		VaadinSession.getCurrent().setAttribute("username", username);
+		var passwordValue = (repeatPasswordField1.getValue().isEmpty()) 
+				? passwordField.getValue() : repeatPasswordField1.getValue();
 		var httpRequest = new HttpRequest(Constants.AUTH_REQ + "/login" + "?username=" + username 
-				+ "&password=" + passwordField.getValue());
+				+ "&password=" + passwordValue);
 		var responseBody = httpRequest.executeLoginRequest();
 		if(responseBody == null) {
 			this.getUI().ifPresent(ui -> ui.navigate(Constants.LOGIN_PATH));
@@ -503,9 +549,13 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 	
 	//LISTENERS
 	
+	/**
+	 * Listener assigned to the add resource option button
+	 * 
+	 */
 	private void addNewFileButtonListener() {
 		var dialog = new Dialog();
-		dialog.getHeader().add(new H2("Añadir nuevo archivo"));
+		dialog.getHeader().add(new H2(ADD_RES_TAG));
 		dialog.setModal(true);
 		dialog.setDraggable(true);
 		var memoryBuffer = new MemoryBuffer();
@@ -524,25 +574,31 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		dialog.open();
 	}
 	
+	/**
+	 * Listener assigned to the confirm add media option button
+	 * 
+	 * @param dialog - dialog where it is being displayed the button
+	 * @param memoryBuffer - memory buffer where it has been loaded the media
+	 */
 	private void confirmAddMediaListener(Dialog dialog, MemoryBuffer memoryBuffer) {
 		var fileName = memoryBuffer.getFileName();
 		var fileData = memoryBuffer.getInputStream();
 		if(fileData == null) {
-			new CustomNotification("No ha seleccionado ningún recurso", NotificationVariant.LUMO_WARNING);
+			new CustomNotification(SEL_RES_ERR, NotificationVariant.LUMO_WARNING);
 			return;
 		}
 		var mediaJSON = getJSONMediaObject(fileName, userJSON);
 		if(sendCreateMediaRequest(mediaJSON)) {
 			setGridContent(emailField.getValue());
-			new CustomNotification("El recurso ha sido añadido correctamente", NotificationVariant.LUMO_SUCCESS);
+			new CustomNotification(ADD_RES_MSG, NotificationVariant.LUMO_SUCCESS);
 			try {
 				var file = new File(Constants.STORED_MEDIA_PATH + "\\" + fileName);
 				Files.copy(fileData, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			} catch (IOException e) {
-				new CustomNotification("Error al cargar el archivo", NotificationVariant.LUMO_ERROR);
+				new CustomNotification(SHW_RES_ERR, NotificationVariant.LUMO_ERROR);
 			}
 		} else {
-			new CustomNotification("El recurso no ha podido ser añadido", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(ADD_RES_ERR, NotificationVariant.LUMO_ERROR);
 		}
 		dialog.close();
 	}
@@ -625,6 +681,12 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		handleUpdateProfileInfoRequestResult(updateOK, bodyRequest);
 	}
 	
+	/**
+	 * Handles the result of the update media request
+	 * 
+	 * @param result - boolean - true if it has been updated, false if not
+	 * @param bodyRequest - body request sent into the request
+	 */
 	private void handleUpdateProfileInfoRequestResult(boolean result, String bodyRequest) {
 		if(result) {
 			userJSON = bodyRequest;
@@ -642,6 +704,12 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 		new CustomNotification(UPD_PRF_ERR, NotificationVariant.LUMO_ERROR);
 	}
 	
+	/**
+	 * Deletes the selected file from the system
+	 * 
+	 * @param fileName - file's name to delete
+	 * @return boolean - true if it has been deleted, false if not
+	 */
 	private boolean deleteFileFromSystem(String fileName) {
 		try {
 			var file = new File(Constants.STORED_MEDIA_PATH + "\\" + fileName);
@@ -811,7 +879,7 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 			setNavigationOptionsPageLayout(isShowingFirst, isShowingLast);
 			if(filesGrid == null) {
 				filesGrid = new CustomFilesGrid(contentArray, userRole, username);
-				mediaLayout.add(filesGrid, navigationOptionsPageLayout, customSelect);
+				mediaLayout.add(filesGrid, customSelect, navigationOptionsPageLayout);
 			} else {
 				var tempGrid = new CustomFilesGrid(contentArray, userRole, username);
 				mediaLayout.replace(filesGrid, tempGrid);
@@ -821,7 +889,7 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 				new CustomNotification("No hay recursos multimedia disponibles.", NotificationVariant.LUMO_WARNING);
 			}
 		} catch(JSONException e) {
-			new CustomNotification("No se han podido obtener los recursos solicitados", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(GET_RES_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
 	}
@@ -840,7 +908,7 @@ public class ProfileView extends CustomAppLayout implements HasUrlParameter<Stri
 			mediaJSON.put("user", new JSONObject(user).getJSONObject("user"));
 			return mediaJSON.toString();
 		} catch (JSONException e) {
-			System.err.println("Error al parsear el objeto JSON: " + e.getMessage());
+			System.err.println(Constants.JSON_ERR + e.getMessage());
 			new CustomNotification(Constants.ERR_MSG, NotificationVariant.LUMO_ERROR);
 			return null;
 		}

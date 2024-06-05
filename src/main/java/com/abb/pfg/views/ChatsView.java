@@ -28,6 +28,7 @@ import lombok.NoArgsConstructor;
  * Shows a chat between a student and a company
  * 
  * @author Adrian Barco Barona
+ * @version 1.0
  *
  */
 @Route(Constants.CHT_PATH)
@@ -38,6 +39,7 @@ public class ChatsView extends CustomAppLayout implements BeforeEnterObserver{
 	private static final long serialVersionUID = 7136958004224813817L;
 	//Etiquetas
 	private static final String HEADER_TAG = "Mis Chats";
+	private static final String MNG_CHT_TAG = "Gestionar chats";
 	private static final String CHATS_ERR = "No se han podido obtener los chats del usuario";
 	//Components
 	private VerticalLayout mainLayout, contentLayout;
@@ -59,6 +61,10 @@ public class ChatsView extends CustomAppLayout implements BeforeEnterObserver{
 			event.forwardTo(LoginView.class);
 			return;
 		}
+		if(userRole.equals(Constants.GST_ROLE)) {
+			event.forwardTo(LoginView.class);
+			return;
+		}
 		init();		//Inicializamos la vista y añadimos el layout principal
 	}
 
@@ -71,9 +77,9 @@ public class ChatsView extends CustomAppLayout implements BeforeEnterObserver{
 		mainLayout.setAlignItems(Alignment.CENTER);
 		mainLayout.setWidthFull();
 		setContentLayout();
-		mainLayout.add(searchField, contentLayout, navigationOptionsPageLayout, numElementsSelect);
+		mainLayout.add(searchField, contentLayout, numElementsSelect, navigationOptionsPageLayout);
 		var baseVerticalLayout = new VerticalLayout();
-		var headerTag = (userRole.equals(Constants.ADM_ROLE)) ? "Gestionar chats" : HEADER_TAG;
+		var headerTag = (userRole.equals(Constants.ADM_ROLE)) ? MNG_CHT_TAG : HEADER_TAG;
 		baseVerticalLayout.add(new H1(headerTag), mainLayout);
 		baseVerticalLayout.setAlignItems(Alignment.CENTER);
 		this.setContent(baseVerticalLayout);
@@ -86,7 +92,8 @@ public class ChatsView extends CustomAppLayout implements BeforeEnterObserver{
 	private void setContentLayout() {
 		contentLayout = new VerticalLayout();
 		contentLayout.setAlignItems(Alignment.CENTER);
-		contentLayout.setWidth("40%");
+		contentLayout.setMaxWidth("1000px");
+		contentLayout.setWidthFull();
 		setSearchField(username, userRole);
 		numElementsSelect = new CustomNumElementsSelect();
 		numElementsSelect.addValueChangeListener(event -> customSelectListener(event.getValue()));
@@ -101,20 +108,11 @@ public class ChatsView extends CustomAppLayout implements BeforeEnterObserver{
 	 */
 	private void setSearchField(String username, String userRole) {
 		searchField = new TextField();
-		searchField.setWidth("30%");
+		searchField.setMaxWidth("500px");
+		searchField.setWidthFull();
 		searchField.setPlaceholder(Constants.SEARCH_TAG);
 		searchField.setPrefixComponent(new Icon(VaadinIcon.SEARCH));
 		searchField.addValueChangeListener(event -> searchFieldListener(username, userRole));
-	}
-	
-	/**
-	 * Listener assigned to the search field, which filter the chats
-	 * 
-	 * @param username - user's username
-	 * @param userType - user's role
-	 */
-	private void searchFieldListener(String username, String userType) {
-		setGridContent(username, userType);
 	}
 	
 	/**
@@ -146,6 +144,66 @@ public class ChatsView extends CustomAppLayout implements BeforeEnterObserver{
 			new CustomNotification("No hay chats disponibles", NotificationVariant.LUMO_WARNING);
 		}
 	}
+	
+	/**
+	 * Gets the custom layout used to navigate between pages
+	 *
+	 * @param isShowingFirst - true if it shows the first resource, false if not
+	 * @param isShowingLast - true if it shows the last resource, false if not
+	 */
+	private void setNavigationOptionsPageLayout(boolean isShowingFirst, boolean isShowingLast) {
+		if(navigationOptionsPageLayout == null) {
+			navigationOptionsPageLayout = new CustomNavigationOptionsPageLayout(isShowingFirst, isShowingLast);
+			navigationOptionsPageLayout.getNextPageButton().addClickListener(event -> nextPageListener());
+			navigationOptionsPageLayout.getPrevPageButton().addClickListener(event -> prevPageListener());
+			return;
+		}
+		navigationOptionsPageLayout.setEnabledNextButton(isShowingLast);
+		navigationOptionsPageLayout.setEnabledPrevButton(isShowingFirst);
+	}
+	
+	//LISTENERS
+	
+	/**
+	 * Listener assigned to the search field, which filter the chats
+	 * 
+	 * @param username - user's username
+	 * @param userType - user's role
+	 */
+	private void searchFieldListener(String username, String userType) {
+		setGridContent(username, userType);
+	}
+	
+	/**
+	 * Listener assigned to the next page option button
+	 * 
+	 */
+	private void nextPageListener() {
+		numPage++;
+		setGridContent(username, userRole);
+	}
+	
+	/**
+	 * Listener assigned to the previous page option button
+	 * 
+	 */
+	private void prevPageListener() {
+		numPage--;
+		setGridContent(username, userRole);
+	}
+	
+	/**
+	 * Listener assigned to the select that points the number of elements to display
+	 * 
+	 * @param value select's value
+	 */
+	private void customSelectListener(Integer value) {
+		numElements = value;
+		numPage = 0;
+		setGridContent(username, userRole);
+	}
+	
+	//HTTP REQUESTS
 	
 	/**
 	 * Sends the request to obtain the user's chats
@@ -180,38 +238,5 @@ public class ChatsView extends CustomAppLayout implements BeforeEnterObserver{
 		var httpRequest = new HttpRequest(getUrl);
 		var authToken = (String) VaadinSession.getCurrent().getAttribute("authToken");
 		return httpRequest.executeHttpGet(authToken);
-	}
-	
-	/**
-	 * Gets the custom layout used to navigate between pages
-	 *
-	 * @param isShowingFirst - true if it shows the first resource, false if not
-	 * @param isShowingLast - true if it shows the last resource, false if not
-	 */
-	private void setNavigationOptionsPageLayout(boolean isShowingFirst, boolean isShowingLast) {
-		if(navigationOptionsPageLayout == null) {
-			navigationOptionsPageLayout = new CustomNavigationOptionsPageLayout(isShowingFirst, isShowingLast);
-			navigationOptionsPageLayout.getNextPageButton().addClickListener(event -> nextPageListener());
-			navigationOptionsPageLayout.getPrevPageButton().addClickListener(event -> prevPageListener());
-			return;
-		}
-		navigationOptionsPageLayout.setEnabledNextButton(isShowingLast);
-		navigationOptionsPageLayout.setEnabledPrevButton(isShowingFirst);
-	}
-	
-	private void nextPageListener() {
-		numPage++;
-		setGridContent(username, userRole);
-	}
-	
-	private void prevPageListener() {
-		numPage--;
-		setGridContent(username, userRole);
-	}
-	
-	private void customSelectListener(Integer value) {
-		numElements = value;
-		numPage = 0;
-		setGridContent(username, userRole);
 	}
 }

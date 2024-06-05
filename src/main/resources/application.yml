@@ -1,0 +1,14 @@
+#Application Configuration
+
+server:
+  port: 8080
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+      
+vaadin:
+  frontend:
+    hotdeploy: true

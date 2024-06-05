@@ -53,6 +53,7 @@ public class UserInfoDetailsView extends CustomAppLayout implements HasUrlParame
 	private static final String STD_INFO = "Información del estudiante";
 	private static final String FILE_INFO = "Archivos";
 	private static final String OFF_INFO = "Ofertas";
+	private static final String GET_RES_ERR = "No se han podido obtener los recursos solicitados";
 	
 	private VerticalLayout mainLayout, tabContentLayout;
 	private CustomNavigationOptionsPageLayout navigationOptionsPageLayout;
@@ -74,12 +75,12 @@ public class UserInfoDetailsView extends CustomAppLayout implements HasUrlParame
 				userCategory = (userRole.equals(Constants.STD_ROLE)) ? Constants.CMP_ROLE : Constants.STD_ROLE;
 				return;
 			} else {
-				new CustomNotification("No tiene acceso al recurso solicitado", NotificationVariant.LUMO_ERROR);
+				new CustomNotification(Constants.ACC_REJ_MSG, NotificationVariant.LUMO_ERROR);
 				event.forwardTo(LoginView.class);
 				return;
 			}
 		}
-		new CustomNotification("No tiene acceso al recurso solicitado", NotificationVariant.LUMO_ERROR);
+		new CustomNotification(Constants.ACC_REJ_MSG, NotificationVariant.LUMO_ERROR);
 		event.forwardTo(LoginView.class);
 		return;
 	}
@@ -264,11 +265,21 @@ public class UserInfoDetailsView extends CustomAppLayout implements HasUrlParame
 		setGridLayout(offersBody, Constants.OFFER_TAG);
 	}
 	
+	/**
+	 * Sets up the layout which contains the media resources
+	 * 
+	 */
 	private void setFilesInfoLayout() {
 		var mediaBody = sendGetListRequest(Constants.MEDIA_REQ + "?username=" + userId, numPage, customSelect.getValue());
 		setGridLayout(mediaBody, Constants.MEDIA_TAG);
 	}
 	
+	/**
+	 * Sets up the grid of media resources
+	 * 
+	 * @param responseBody
+	 * @param resourceCategory
+	 */
 	private void setGridLayout(String responseBody, String resourceCategory) {
 		if(responseBody == null) {
 			new CustomNotification("No se han podido obtener los recursos solicitados", NotificationVariant.LUMO_ERROR);
@@ -282,12 +293,13 @@ public class UserInfoDetailsView extends CustomAppLayout implements HasUrlParame
 			var tempGrid = (resourceCategory.equals(Constants.MEDIA_TAG)) ? new CustomFilesGrid(contentArray, userRole, userId) : 
 				new CustomJobOffersGrid(contentArray, userRole, false);
 			var tempLayout = new VerticalLayout();
-			tempLayout.setWidth("50%");
+			tempLayout.setMaxWidth("1000px");
+			tempLayout.setWidthFull();
 			tempLayout.add(tempGrid);
 			setNavigationOptionsPageLayout(isShowingFirst, isShowingLast);
-			tabContentLayout.add(tempLayout, navigationOptionsPageLayout, customSelect);
+			tabContentLayout.add(tempLayout, customSelect, navigationOptionsPageLayout);
 		} catch (JSONException e) {
-			new CustomNotification("No se han podido obtener los recursos solicitados", NotificationVariant.LUMO_ERROR);
+			new CustomNotification(GET_RES_ERR, NotificationVariant.LUMO_ERROR);
 			return;
 		}
 	}
@@ -327,18 +339,30 @@ public class UserInfoDetailsView extends CustomAppLayout implements HasUrlParame
 	
 	//LISTENERS
 	
+	/**
+	 * Listener assigned to the next page option button
+	 * 
+	 */
 	private void nextPageListener() {
 		numPage++;
 		tabContentLayout.removeAll();
 		setTabContent(userTabs.getSelectedTab());
 	}
 	
+	/**
+	 * Listener assigned to the previous page option button
+	 * 
+	 */
 	private void prevPageListener() {
 		numPage--;
 		tabContentLayout.removeAll();
 		setTabContent(userTabs.getSelectedTab());
 	}
 	
+	/*
+	 * Listener assigned to the Select component that displays the number of elements
+	 * 
+	 */
 	private void customSelectListener() {
 		numPage=0;
 		tabContentLayout.removeAll();
@@ -366,6 +390,14 @@ public class UserInfoDetailsView extends CustomAppLayout implements HasUrlParame
 		return httpRequest.executeHttpGet(authToken);
 	}
 	
+	/**
+	 * Sends an http request to get a list of objects from the url endpoint
+	 * 
+	 * @param getUrl - http url
+	 * @param numPage - page number to display
+	 * @param numElements - number of elements to display 
+	 * @return String - response body
+	 */
 	private String sendGetListRequest(String getUrl, Integer numPage, Integer numElements) {
 		var httpRequest = new HttpRequest(getUrl + "&page=" + numPage);
 		getUrl = (numElements == null) ? getUrl : getUrl + "&size=" + numElements;

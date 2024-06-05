@@ -45,7 +45,6 @@ public class CustomSignUpStudentLayout extends VerticalLayout{
 		setDescriptionField();
 		setPhoneField();										//Creamos el campo del numero de telefono
 		setProfilePictureField();								//Creamos el campo de carga de foto de perfil
-		getButtonsLayout();
 		var verticalLayout = new VerticalLayout(getButtonsLayout());
 		verticalLayout.setAlignItems(Alignment.CENTER);
 		this.add(nameField, dniField, phoneField, studiesField, profilePicture, descriptionField, verticalLayout);
@@ -54,7 +53,7 @@ public class CustomSignUpStudentLayout extends VerticalLayout{
 	private void setNameField() {
 		nameField = new TextField(Constants.NAME_TAG);			//Creamos el campo del nombre
 		nameField.setMaxLength(Constants.FIELDS_MAX_LENGTH);
-		nameField.setWidth(Constants.STRD_SIZE);
+		nameField.setWidth("30%");
 	}
 	
 	private void setDniField() {
@@ -67,13 +66,13 @@ public class CustomSignUpStudentLayout extends VerticalLayout{
 			var isInvalid = (dni.matches(Constants.DNI_REGEX)) ? false : true;
 			dniField.setInvalid(isInvalid);
 		});
-		dniField.setWidth(Constants.STRD_SIZE);
+		dniField.setWidth("30%");
 	}
 	
 	private void setStudiesField() {
 		studiesField = new TextField(Constants.STUDIES_TAG);	//Creamos el campo de los estudios
 		studiesField.setMaxLength(Constants.FIELDS_MAX_LENGTH);
-		studiesField.setWidth(Constants.STRD_SIZE);
+		studiesField.setWidth("30%");
 	}
 	
 	private void setDescriptionField() {
@@ -94,7 +93,7 @@ public class CustomSignUpStudentLayout extends VerticalLayout{
 			var isInvalid = (phone.matches(Constants.PHONE_REGEX)) ? false : true;
 			phoneField.setInvalid(isInvalid);
 		});
-		phoneField.setWidth(Constants.STRD_SIZE);
+		phoneField.setWidth("30%");
 	}
 	
 	/**
