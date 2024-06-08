@@ -92,7 +92,7 @@ public class ChatsView extends CustomAppLayout implements BeforeEnterObserver{
 	private void setContentLayout() {
 		contentLayout = new VerticalLayout();
 		contentLayout.setAlignItems(Alignment.CENTER);
-		contentLayout.setMaxWidth("1000px");
+		contentLayout.setMaxWidth("800px");
 		contentLayout.setWidthFull();
 		setSearchField(username, userRole);
 		numElementsSelect = new CustomNumElementsSelect();

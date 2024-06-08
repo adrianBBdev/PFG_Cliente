@@ -320,7 +320,7 @@ public class JobOfferDetailsView extends CustomAppLayout implements HasUrlParame
 	 *
 	 */
 	private void locationButtonListener() {
-		if(jobOfferId != null && !userRole.equals(Constants.GST_ROLE)) {
+		if(jobOfferId != null) {
 			this.getUI().ifPresent(ui -> ui.navigate(Constants.LOC_PATH + "/" + jobOfferId));
 			return;
 		}

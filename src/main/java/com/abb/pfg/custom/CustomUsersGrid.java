@@ -9,7 +9,9 @@ import com.abb.pfg.utils.Constants;
 import com.abb.pfg.utils.HttpRequest;
 import com.abb.pfg.utils.UserListComponent;
 import com.vaadin.flow.component.avatar.Avatar;
+import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.server.VaadinSession;
 
@@ -43,10 +45,10 @@ public class CustomUsersGrid extends Grid<UserListComponent>{
 		this.setAllRowsVisible(true);
 		this.setItems(gridData);
 		if(!userCategory.equals(Constants.ADM_ROLE)) {
-			this.addComponentColumn(user -> getCustomAvatar(user.getProfilePicture(), user.getName())).setHeader("");
-			this.addColumn(user -> user.getName()).setHeader(Constants.NAME_TAG);
+			this.addComponentColumn(user -> getCustomAvatar(user.getProfilePicture(), user.getName())).setHeader("").setTextAlign(ColumnTextAlign.CENTER);
+			this.addColumn(user -> user.getName()).setHeader(Constants.NAME_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		}
-		this.addColumn(user -> user.getUsername()).setHeader(Constants.USERNAME_TAG);
+		this.addColumn(user -> user.getUsername()).setHeader(Constants.USERNAME_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var usersGrid = this.addContextMenu();
 		usersGrid.setOpenOnClick(true);
 		usersGrid.addItem(SHW_TAG, event -> userDetailsListener(event.getItem().get().getUsername(), userCategory));
@@ -54,6 +56,7 @@ public class CustomUsersGrid extends Grid<UserListComponent>{
 			usersGrid.addItem(Constants.EDIT_TAG, event -> editUserDetailsListener(event.getItem().get().getUsername(), userCategory));
 		}
 		usersGrid.addItem(Constants.DELETE_TAG, event -> deleteUserListener(event.getItem().get(), userCategory));
+		this.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 	}
 	
 	/**

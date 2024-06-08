@@ -9,7 +9,9 @@ import org.json.JSONObject;
 import com.abb.pfg.utils.Constants;
 import com.abb.pfg.utils.HttpRequest;
 import com.abb.pfg.utils.JobOfferListComponent;
+import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.server.VaadinSession;
 
@@ -54,6 +56,7 @@ public class CustomJobOffersGrid extends Grid<JobOfferListComponent> {
 			default:	//ADMIN
 				setAdminRoleGrid();
 		}
+		this.addThemeVariants(GridVariant.LUMO_NO_BORDER);
 	}
 
 	/**
@@ -76,6 +79,9 @@ public class CustomJobOffersGrid extends Grid<JobOfferListComponent> {
 		} else {
 			for(var i=0; i<contentArray.length(); i++) {
 				var jsonObject = contentArray.getJSONObject(i);
+				if(userRole.equals(Constants.STD_ROLE) && jsonObject.getBoolean("status") == false) {
+					continue;
+				}
 				jobOffers.add(parseJobOfferJSON(null, jsonObject, userRole));
 			}
 		}
@@ -88,9 +94,9 @@ public class CustomJobOffersGrid extends Grid<JobOfferListComponent> {
 	 * @param isShowingFavorites - true if is is displaying their favorites job offers, fals if not
 	 */
 	private void setStudentRoleGrid(boolean isShowingFavorites) {
-		this.addColumn(jobOffer -> jobOffer.getTitle()).setHeader(Constants.NAME_TAG);
-		this.addColumn(jobOffer -> jobOffer.getArea()).setHeader(Constants.AREA_TAG);
-		this.addColumn(jobOffer -> jobOffer.getCity()).setHeader(Constants.CITY_TAG);
+		this.addColumn(jobOffer -> jobOffer.getTitle()).setHeader(Constants.NAME_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getArea()).setHeader(Constants.AREA_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getCity()).setHeader(Constants.CITY_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var jobOffersGrid = this.addContextMenu();
 		jobOffersGrid.setOpenOnClick(true);
 		jobOffersGrid.addItem(SHW_TAG, event -> jobOfferDetailsListener(event.getItem().get().getOfferCode()));
@@ -105,11 +111,11 @@ public class CustomJobOffersGrid extends Grid<JobOfferListComponent> {
 	 * 
 	 */
 	private void setCompanyRoleGrid() {
-		this.addColumn(jobOffer -> jobOffer.getTitle()).setHeader(Constants.NAME_TAG);
-		this.addColumn(jobOffer -> jobOffer.getArea()).setHeader(Constants.AREA_TAG);
-		this.addColumn(jobOffer -> jobOffer.getCity()).setHeader(Constants.CITY_TAG);
-		this.addColumn(jobOffer -> jobOffer.getStatus()).setHeader(Constants.STATUS_TAG);
-		this.addColumn(jobOffer -> jobOffer.getNumRequests()).setHeader(NUM_PETICIONES_TAG);
+		this.addColumn(jobOffer -> jobOffer.getTitle()).setHeader(Constants.NAME_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getArea()).setHeader(Constants.AREA_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getCity()).setHeader(Constants.CITY_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getStatus()).setHeader(Constants.STATUS_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getNumRequests()).setHeader(NUM_PETICIONES_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var jobOffersGrid = this.addContextMenu();
 		jobOffersGrid.setOpenOnClick(true);
 		jobOffersGrid.addItem(SHW_TAG, event -> jobOfferDetailsListener(event.getItem().get().getOfferCode()));
@@ -123,11 +129,11 @@ public class CustomJobOffersGrid extends Grid<JobOfferListComponent> {
 	 * 
 	 */
 	private void setAdminRoleGrid() {
-		this.addColumn(jobOffer -> jobOffer.getCompany()).setHeader(Constants.COMPANY_TAG);
-		this.addColumn(jobOffer -> jobOffer.getTitle()).setHeader(Constants.NAME_TAG);
-		this.addColumn(jobOffer -> jobOffer.getArea()).setHeader(Constants.AREA_TAG);
-		this.addColumn(jobOffer -> jobOffer.getCity()).setHeader(Constants.CITY_TAG);
-		this.addColumn(jobOffer -> jobOffer.getStatus()).setHeader(Constants.STATUS_TAG);
+		this.addColumn(jobOffer -> jobOffer.getCompany()).setHeader(Constants.COMPANY_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getTitle()).setHeader(Constants.NAME_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getArea()).setHeader(Constants.AREA_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getCity()).setHeader(Constants.CITY_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(jobOffer -> jobOffer.getStatus()).setHeader(Constants.STATUS_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var jobOffersGrid = this.addContextMenu();
 		jobOffersGrid.setOpenOnClick(true);
 		jobOffersGrid.addItem(SHW_TAG, event -> jobOfferDetailsListener(event.getItem().get().getOfferCode()));
@@ -197,7 +203,8 @@ public class CustomJobOffersGrid extends Grid<JobOfferListComponent> {
 		}
 		var jsonObject = new JSONObject(jobOfferBody);
 		var status = jsonObject.getBoolean("status");
-		jsonObject.put("state", !status);
+		var newStatus = (status == true) ? false : true;
+		jsonObject.put("status", newStatus);
 		var jobOfferUpdated = jsonObject.toString();
 		var httpPut = new HttpRequest(Constants.OFF_REQ);
 		var isUpdated = httpPut.executeHttpPut(authToken, jobOfferUpdated);

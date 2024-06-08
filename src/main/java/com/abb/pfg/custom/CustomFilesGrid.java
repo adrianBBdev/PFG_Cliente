@@ -18,7 +18,9 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -53,8 +55,8 @@ public class CustomFilesGrid extends Grid<FileListComponent> {
 		var gridData = getGridData(contentArray, userRole);
 		this.setAllRowsVisible(true);
 		this.setItems(gridData);
-		this.addColumn(file -> file.getName()).setHeader(Constants.NAME_TAG);
-		this.addColumn(file -> file.getType()).setHeader(Constants.RESOURCE_TAG);
+		this.addColumn(file -> file.getName()).setHeader(Constants.NAME_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(file -> file.getType()).setHeader(Constants.RESOURCE_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var resourcesGrid = this.addContextMenu();
 		resourcesGrid.setOpenOnClick(true);
 		resourcesGrid.addItem("Ver recurso", event -> openResourceListener(event.getItem().get()));
@@ -63,6 +65,7 @@ public class CustomFilesGrid extends Grid<FileListComponent> {
 			resourcesGrid.addItem(Constants.DELETE_TAG, event -> deleteResourceListener(event.getItem().get(), 
 					Constants.RES_REQ));
 		}
+		this.addThemeVariants(GridVariant.LUMO_NO_BORDER);
 	}
 	
 	/**
@@ -77,8 +80,8 @@ public class CustomFilesGrid extends Grid<FileListComponent> {
 		var gridData = getGridData(contentArray, userRole);
 		this.setAllRowsVisible(true);
 		this.setItems(gridData);
-		this.addColumn(file -> file.getName()).setHeader(Constants.NAME_TAG);
-		this.addColumn(file -> file.getType()).setHeader(Constants.MEDIA_TAG);
+		this.addColumn(file -> file.getName()).setHeader(Constants.NAME_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(file -> file.getType()).setHeader(Constants.MEDIA_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var resourcesGrid = this.addContextMenu();
 		resourcesGrid.setOpenOnClick(true);
 		resourcesGrid.addItem("Ver archivo", event -> openResourceListener(event.getItem().get()));
@@ -88,6 +91,7 @@ public class CustomFilesGrid extends Grid<FileListComponent> {
 			resourcesGrid.addItem(Constants.DELETE_TAG, event -> deleteResourceListener(event.getItem().get(), 
 					Constants.MEDIA_REQ));
 		}
+		this.addThemeVariants(GridVariant.LUMO_NO_BORDER);
 	}
 	
 	/**
@@ -191,9 +195,27 @@ public class CustomFilesGrid extends Grid<FileListComponent> {
 			new CustomNotification("Recurso eliminado correctamente", NotificationVariant.LUMO_SUCCESS);
 			files.remove(resource);
 			this.getDataProvider().refreshAll();
+			deleteFileFromSystem(resource.getName());
 			return;
 		}
 		new CustomNotification("El recurso no ha podido ser eliminado", NotificationVariant.LUMO_SUCCESS);
+	}
+	
+	/**
+	 * Deletes the media resource from system
+	 * 
+	 * @param fileName - file name to delete
+	 * @return boolean - true if it has been deleted, false if not
+	 */
+	private boolean deleteFileFromSystem(String fileName) {
+		var storedPath = (fileCategory.equals(Constants.MEDIA_TAG)) ? Constants.STORED_MEDIA_PATH : Constants.STORED_FILE_PATH;
+		try {
+			var file = new File(storedPath + "\\" + fileName);
+			return file.delete();
+		} catch (SecurityException e) {
+			System.err.println("Error: no se ha podido eliminar el archivo del sistema");
+			return false;
+		}
 	}
 	
 	/**

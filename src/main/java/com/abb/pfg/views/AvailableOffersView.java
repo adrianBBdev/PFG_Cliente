@@ -308,6 +308,10 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 		if(userRole.equals(Constants.STD_ROLE)) {
 			isSaved = isJobOfferSaved(username, jobOfferId);
 		}
+		if((userRole.equals(Constants.STD_ROLE) || userRole.equals(Constants.GST_ROLE)) 
+				&& jobOfferJSON.getBoolean("status") == false) {
+			return;
+		}
 		var listItem = new CustomJobOfferListItem(jobOfferJSON.toString(), isSaved);
 		contentLayout.add(listItem);
 	}
@@ -321,13 +325,12 @@ public class AvailableOffersView extends CustomAppLayout implements BeforeEnterO
 	 */
 	private String sendAvailableJobOffersRequest() {
 		var getUrl = Constants.OFF_REQ;
-		if(userRole.equals(Constants.ADM_ROLE)) {
-			getUrl = getAvailableJobOffersURLStringParameter(getUrl, "name", searchField.getValue());
-		}
 		if(userRole.equals(Constants.CMP_ROLE)) {
 			getUrl = getAvailableJobOffersURLStringParameter(getUrl, "companyId", username);
 		}
-		if(!userRole.equals(Constants.ADM_ROLE)) {
+		if(userRole.equals(Constants.ADM_ROLE)) {
+			getUrl = getAvailableJobOffersURLStringParameter(getUrl, "name", searchField.getValue());
+		} else {
 			getUrl = getAvailableJobOffersURLStringParameter(getUrl, "city", cityField.getValue());
 			getUrl = getAvailableJobOffersURLStringParameter(getUrl, "area", areaSelect.getValue());
 			getUrl = getAvailableJobOffersURLStringParameter(getUrl, "modality", modalitySelect.getValue());

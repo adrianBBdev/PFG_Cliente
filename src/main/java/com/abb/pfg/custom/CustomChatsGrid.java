@@ -10,7 +10,9 @@ import com.abb.pfg.utils.ChatListComponent;
 import com.abb.pfg.utils.Constants;
 import com.abb.pfg.utils.HttpRequest;
 import com.vaadin.flow.component.avatar.Avatar;
+import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.server.VaadinSession;
 /**
@@ -40,21 +42,22 @@ public class CustomChatsGrid extends Grid<ChatListComponent>{
 		switch(userRole) {
 			case Constants.STD_ROLE:
 				this.addComponentColumn(chat -> getCustomAvatar(chat.getCompanyName(), chat.getCompanyLogo())).setHeader("");
-				this.addColumn(chat -> chat.getCompanyName()).setHeader(Constants.COMPANY_TAG);
+				this.addColumn(chat -> chat.getCompanyName()).setHeader(Constants.COMPANY_TAG).setTextAlign(ColumnTextAlign.CENTER);
 				break;
 			case Constants.CMP_ROLE:
-				this.addComponentColumn(chat -> getCustomAvatar(chat.getStudentName(), chat.getStudentPicture())).setHeader("");
+				this.addComponentColumn(chat -> getCustomAvatar(chat.getStudentName(), chat.getStudentPicture())).setHeader("").setTextAlign(ColumnTextAlign.CENTER);
 				this.addColumn(chat -> chat.getStudentName()).setHeader(Constants.STUDENT_TAG);
 				break;
 			default:
-				this.addColumn(chat -> chat.getCompanyName()).setHeader(Constants.COMPANY_TAG);
-				this.addColumn(chat -> chat.getStudentName()).setHeader(Constants.STUDENT_TAG);
+				this.addColumn(chat -> chat.getCompanyName()).setHeader(Constants.COMPANY_TAG).setTextAlign(ColumnTextAlign.CENTER);
+				this.addColumn(chat -> chat.getStudentName()).setHeader(Constants.STUDENT_TAG).setTextAlign(ColumnTextAlign.CENTER);
 				break;
 		}
 		var chatsGrid = this.addContextMenu();
 		chatsGrid.setOpenOnClick(true);
 		chatsGrid.addItem(OPEN_CHAT_TAG, event -> openChatListener(event.getItem().get().getChatCode()));
 		chatsGrid.addItem(Constants.DELETE_TAG, event -> deleteChatListener(event.getItem().get()));
+		this.addThemeVariants(GridVariant.LUMO_NO_BORDER);
 	}
 	
 	/**

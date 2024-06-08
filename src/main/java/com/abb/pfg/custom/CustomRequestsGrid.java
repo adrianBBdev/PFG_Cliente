@@ -10,7 +10,9 @@ import org.json.JSONObject;
 import com.abb.pfg.utils.Constants;
 import com.abb.pfg.utils.HttpRequest;
 import com.abb.pfg.utils.RequestListComponent;
+import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.grid.contextmenu.GridContextMenu.GridContextMenuItemClickEvent;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -48,7 +50,7 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 		var gridData = getGridData(contentArray);
 		this.setAllRowsVisible(true);
 		this.setItems(gridData);
-		this.addColumn(request -> request.getTitle()).setHeader(Constants.TITLE_TAG);
+		this.addColumn(request -> request.getTitle()).setHeader(Constants.TITLE_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		switch(userRole) {
 			case Constants.STD_ROLE:
 				setStudentRoleGrid(userRole);
@@ -59,6 +61,7 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 			default: 
 				setAdminRoleGrid(userRole);
 		}
+		this.addThemeVariants(GridVariant.LUMO_NO_BORDER);
 	}
 	
 	/**
@@ -92,9 +95,9 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 	 * @param userRole - usr's role
 	 */
 	private void setStudentRoleGrid(String userRole) {
-		this.addColumn(request -> request.getCompanyName()).setHeader(Constants.COMPANY_TAG);
-		this.addColumn(request -> request.getRequestDate()).setHeader(DATE_TAG);
-		this.addComponentColumn(request -> createStatusIcon(request.getRequestStatus())).setHeader(Constants.STATUS_TAG);
+		this.addColumn(request -> request.getCompanyName()).setHeader(Constants.COMPANY_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(request -> request.getRequestDate()).setHeader(DATE_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addComponentColumn(request -> createStatusIcon(request.getRequestStatus())).setHeader(Constants.STATUS_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var requestsGrid = this.addContextMenu();
 		requestsGrid.setOpenOnClick(true);
 		requestsGrid.addItem(SHW_TAG, event -> requestDetailsListener(event.getItem().get().getRequestCode()));
@@ -109,9 +112,9 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 	 * @param userRole - user's role
 	 */
 	private void setCompanyRoleGrid(String userRole) {
-		this.addColumn(request -> request.getStudentName()).setHeader(APP_TAG);
-		this.addColumn(request -> request.getRequestDate()).setHeader(DATE_TAG);
-		this.addComponentColumn(request -> createStatusIcon(request.getRequestStatus())).setHeader(Constants.STATUS_TAG);
+		this.addColumn(request -> request.getStudentName()).setHeader(APP_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(request -> request.getRequestDate()).setHeader(DATE_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addComponentColumn(request -> createStatusIcon(request.getRequestStatus())).setHeader(Constants.STATUS_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var requestsGrid = this.addContextMenu();
 		requestsGrid.setOpenOnClick(true);
 		requestsGrid.addItem(SHW_TAG, event -> requestDetailsListener(event.getItem().get().getRequestCode()));
@@ -126,10 +129,10 @@ public class CustomRequestsGrid extends Grid<RequestListComponent> {
 	 * @param userRole - user's role
 	 */
 	private void setAdminRoleGrid(String userRole) {
-		this.addColumn(request -> request.getCompanyName()).setHeader(Constants.COMPANY_TAG);
-		this.addColumn(request -> request.getStudentName()).setHeader(APP_TAG);
-		this.addColumn(request -> request.getRequestDate()).setHeader(DATE_TAG);
-		this.addComponentColumn(request -> createStatusIcon(request.getRequestStatus())).setHeader(Constants.STATUS_TAG);
+		this.addColumn(request -> request.getCompanyName()).setHeader(Constants.COMPANY_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(request -> request.getStudentName()).setHeader(APP_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addColumn(request -> request.getRequestDate()).setHeader(DATE_TAG).setTextAlign(ColumnTextAlign.CENTER);
+		this.addComponentColumn(request -> createStatusIcon(request.getRequestStatus())).setHeader(Constants.STATUS_TAG).setTextAlign(ColumnTextAlign.CENTER);
 		var requestsGrid = this.addContextMenu();
 		requestsGrid.setOpenOnClick(true);
 		requestsGrid.addItem(SHW_TAG, event -> requestDetailsListener(event.getItem().get().getRequestCode()));
